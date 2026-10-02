@@ -2,8 +2,16 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>NekoCut Pro - Trình Biên Tập Video Wuthering Waves</title>
+
+  <!-- PWA Manifest & App Config -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#07070b" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="NekoCut Pro" />
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -19,25 +27,28 @@
   <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Cinzel:wght@700;900&family=Montserrat:wght@700;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 
   <style>
-    /* Ẩn thanh cuộn nhưng vẫn cuộn mượt mà */
+    /* Chống kéo nảy màn hình trên mobile */
+    html, body {
+      overscroll-behavior-y: contain;
+      touch-action: pan-x pan-y;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-    /* Thanh cuộn phong cách Neko hồng tím */
-    .neko-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .neko-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
     .neko-scroll::-webkit-scrollbar-track { background: #0c0a13; }
     .neko-scroll::-webkit-scrollbar-thumb { background: #2f1e3c; border-radius: 4px; }
     .neko-scroll::-webkit-scrollbar-thumb:hover { background: #ec4899; }
   </style>
 </head>
-<body class="bg-[#07070b] text-white selection:bg-pink-500 selection:text-white overflow-hidden">
-  <div id="root"></div>
+<body class="bg-[#07070b] text-white selection:bg-pink-500 selection:text-white overflow-hidden h-[100dvh] w-screen">
+  <div id="root" class="h-full w-full"></div>
 
-  <!-- Script ứng dụng NekoCut độc lập -->
   <script type="text/babel">
     const { useState, useRef, useEffect, useCallback, useMemo } = React;
 
-    // Bộ âm thanh Web Audio SFX phong cách Neko & Wuthering Waves
     const playNekoSound = (type = 'click') => {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -116,11 +127,6 @@
         <div className="absolute top-52 left-12 text-rose-400/[0.14] -rotate-6"><CatPawSvg className="w-11 h-11" /></div>
         <div className="absolute top-24 right-32 text-amber-400/[0.14] rotate-24"><CatPawSvg className="w-8 h-8" /></div>
         <div className="absolute top-44 right-16 text-amber-500/[0.18] rotate-45"><CatPawSvg className="w-10 h-10" /></div>
-        <div className="absolute top-64 right-36 text-pink-500/[0.15] rotate-15"><CatPawSvg className="w-9 h-9" /></div>
-        <div className="absolute top-80 right-14 text-pink-400/[0.2] rotate-35"><CatPawSvg className="w-12 h-12" /></div>
-        <div className="absolute bottom-24 left-1/4 text-rose-500/[0.14] -rotate-25"><CatPawSvg className="w-8 h-8" /></div>
-        <div className="absolute bottom-14 left-[38%] text-amber-400/[0.16] -rotate-12"><CatPawSvg className="w-9 h-9" /></div>
-        <div className="absolute bottom-28 right-[32%] text-pink-500/[0.15] rotate-18"><CatPawSvg className="w-10 h-10" /></div>
       </div>
     );
 
@@ -140,7 +146,7 @@
           src="nekocut.jpg"
           alt="NekoCut Logo"
           onError={() => setHasError(true)}
-          className={`${className} rounded-2xl object-cover border border-pink-500/30 shadow-[0_0_14px_rgba(244,63,94,0.3)] bg-zinc-900 shrink-0 transition-transform hover:scale-105`}
+          className={`${className} rounded-2xl object-cover border border-pink-500/30 shadow-[0_0_14px_rgba(244,63,94,0.3)] bg-zinc-900 shrink-0 transition-transform`}
         />
       );
     };
@@ -150,17 +156,9 @@
       if (hasError) {
         return (
           <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-            <circle cx="50" cy="50" r="46" stroke="url(#ww_gold)" strokeWidth="2.5" strokeDasharray="6 3" opacity="0.6" />
-            <path d="M50 12 L60 38 L88 50 L60 62 L50 88 L40 62 L12 50 L40 38 Z" stroke="url(#ww_gold)" strokeWidth="2.5" fill="rgba(245, 158, 11, 0.15)" />
+            <circle cx="50" cy="50" r="46" stroke="#fde047" strokeWidth="2.5" opacity="0.6" />
+            <path d="M50 12 L60 38 L88 50 L60 62 L50 88 L40 62 L12 50 L40 38 Z" stroke="#fde047" strokeWidth="2.5" fill="rgba(245, 158, 11, 0.15)" />
             <circle cx="50" cy="50" r="14" stroke="#fef08a" strokeWidth="2" fill="#09090b" />
-            <circle cx="50" cy="50" r="3.5" fill="#fef08a" />
-            <defs>
-              <linearGradient id="ww_gold" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fde047" />
-                <stop offset="50%" stopColor="#eab308" />
-                <stop offset="100%" stopColor="#ca8a04" />
-              </linearGradient>
-            </defs>
           </svg>
         );
       }
@@ -212,58 +210,60 @@
     const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
     const ASPECT_RATIOS = [
-      { id: '16-9', label: '16:9 (Chuẩn WW 1080p)', w: 1920, h: 1080, ratioCss: '16/9' },
-      { id: '9-16', label: '9:16 (TikTok / Shorts 1080p)', w: 1080, h: 1920, ratioCss: '9/16' },
-      { id: '1-1', label: '1:1 (Vuông Instagram 1080p)', w: 1080, h: 1080, ratioCss: '1/1' },
-      { id: '21-9', label: '21:9 (Điện ảnh 2K)', w: 2560, h: 1080, ratioCss: '21/9' }
+      { id: '16-9', label: '16:9 (Chuẩn WW)', w: 1920, h: 1080, ratioCss: '16/9' },
+      { id: '9-16', label: '9:16 (TikTok / Reels)', w: 1080, h: 1920, ratioCss: '9/16' },
+      { id: '1-1', label: '1:1 (Vuông Instagram)', w: 1080, h: 1080, ratioCss: '1/1' },
+      { id: '21-9', label: '21:9 (Điện ảnh)', w: 2560, h: 1080, ratioCss: '21/9' }
     ];
 
     const WW_STYLES = [
-      {
-        id: 'crisp',
-        name: 'Crisp & Punchy',
-        desc: 'Contrast +15, Saturation +8, Highlights -8. Nét sâu đòn đánh.',
-        css: 'contrast(1.18) saturate(1.12) brightness(0.96)'
-      },
-      {
-        id: 'cyber',
-        name: 'Deep Cyber Matrix',
-        desc: 'Lạnh & Sâu, làm rực sáng các vệt tia VFX neon của sàn đấu.',
-        css: 'contrast(1.22) saturate(1.25) hue-rotate(185deg) brightness(0.92)'
-      },
-      {
-        id: 'vibrant',
-        name: 'Vibrant VFX Anime',
-        desc: 'Màu sắc bùng nổ, chiêu nộ rực rỡ và nịnh mắt khi lên Shorts/TikTok.',
-        css: 'contrast(1.15) saturate(1.45) brightness(1.04)'
-      }
+      { id: 'crisp', name: 'Crisp & Punchy', desc: 'Sắc nét đòn đánh', css: 'contrast(1.18) saturate(1.12) brightness(0.96)' },
+      { id: 'cyber', name: 'Deep Cyber Matrix', desc: 'Rực sáng VFX Neon', css: 'contrast(1.22) saturate(1.25) hue-rotate(185deg) brightness(0.92)' },
+      { id: 'vibrant', name: 'Vibrant Anime', desc: 'Chiêu nộ rực rỡ', css: 'contrast(1.15) saturate(1.45) brightness(1.04)' }
     ];
 
     const FONTS = [
-      { id: 'sans-serif', name: 'Sans-serif (Chuẩn)', family: 'sans-serif' },
-      { id: 'Orbitron', name: 'Orbitron (Matrix Sci-Fi)', family: "'Orbitron', sans-serif" },
-      { id: 'Bangers', name: 'Bangers (Anime Manga)', family: "'Bangers', cursive" },
-      { id: 'Cinzel', name: 'Cinzel (RPG Điện Ảnh)', family: "'Cinzel', serif" },
-      { id: 'Montserrat', name: 'Montserrat (Hiện Đại)', family: "'Montserrat', sans-serif" }
+      { id: 'sans-serif', name: 'Sans-serif', family: 'sans-serif' },
+      { id: 'Orbitron', name: 'Orbitron', family: "'Orbitron', sans-serif" },
+      { id: 'Bangers', name: 'Bangers', family: "'Bangers', cursive" },
+      { id: 'Montserrat', name: 'Montserrat', family: "'Montserrat', sans-serif" }
     ];
 
     const FILTERS = [
-      { id: 'none', name: 'Gốc (Bình thường)', cat: 'all', tag: 'Original', css: 'none' },
-      { id: 'crisp', name: 'Crisp & Punchy', cat: 'ww', tag: 'WW Hot', css: 'contrast(1.18) saturate(1.12) brightness(0.96)' },
-      { id: 'high-contrast', name: 'High Contrast (Điểm)', cat: 'ww', tag: 'WW Score', css: 'contrast(1.35) saturate(1.2) brightness(1.05)' },
-      { id: 'cyber', name: 'Deep Cyber Matrix', cat: 'ww', tag: 'WW Neon', css: 'contrast(1.22) saturate(1.25) hue-rotate(185deg) brightness(0.92)' },
-      { id: 'vibrant', name: 'Vibrant VFX Anime', cat: 'ww', tag: 'WW Anime', css: 'contrast(1.15) saturate(1.45) brightness(1.04)' },
-      { id: 'dramatic', name: 'Dramatic Dark', cat: 'cinema', tag: 'Cinema', css: 'contrast(1.38) brightness(0.88) saturate(0.92)' }
+      { id: 'none', name: 'Gốc', tag: 'Original', css: 'none' },
+      { id: 'crisp', name: 'Crisp & Punchy', tag: 'WW Hot', css: 'contrast(1.18) saturate(1.12) brightness(0.96)' },
+      { id: 'high-contrast', name: 'High Contrast', tag: 'WW Score', css: 'contrast(1.35) saturate(1.2) brightness(1.05)' },
+      { id: 'cyber', name: 'Deep Cyber', tag: 'WW Neon', css: 'contrast(1.22) saturate(1.25) hue-rotate(185deg) brightness(0.92)' },
+      { id: 'vibrant', name: 'Vibrant VFX', tag: 'WW Anime', css: 'contrast(1.15) saturate(1.45) brightness(1.04)' }
     ];
 
     const ANIM_IN_EFFECTS = [
       { id: 'none', label: 'Không hiệu ứng', icon: '⛔' },
       { id: 'flash', label: '⚡ White Flash', icon: '⚡' },
-      { id: 'black_flash', label: '🌑 Fade In Đen', icon: '🌑' },
+      { id: 'black_flash', label: '🌑 Fade Đen', icon: '🌑' },
       { id: 'whip', label: '💥 Whip Zoom', icon: '💥' },
-      { id: 'zoom_in', label: '🔍 Phóng To Nhẹ', icon: '🔍' },
-      { id: 'shake', label: '📳 Rung Chấn Mạnh', icon: '📳' }
+      { id: 'zoom_in', label: '🔍 Phóng To', icon: '🔍' },
+      { id: 'shake', label: '📳 Rung Chấn', icon: '📳' }
     ];
+
+    const drawRoundedRect = (ctx, x, y, width, height, radius) => {
+      if (typeof ctx.roundRect === 'function') {
+        ctx.beginPath();
+        ctx.roundRect(x, y, width, height, radius);
+        return;
+      }
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    };
 
     const getExactVideoDuration = (videoUrl) => {
       return new Promise((resolve) => {
@@ -280,7 +280,6 @@
       const [currentPage, setCurrentPage] = useState('home');
       const [toastMsg, setToastMsg] = useState('');
 
-      // Timeline Clips State
       const [videoClips, setVideoClips] = useState([]);
       const [activeClipId, setActiveClipId] = useState(null);
       const [currentTime, setCurrentTime] = useState(0);
@@ -289,7 +288,6 @@
       const [selectedRatio, setSelectedRatio] = useState(ASPECT_RATIOS[0]);
       const [fitMode, setFitMode] = useState('fit');
 
-      // Audio Control & Multi-Clip BGM
       const [masterVolume, setMasterVolume] = useState(1.0);
       const [audioClips, setAudioClips] = useState([]);
       const [activeAudioClipId, setActiveAudioClipId] = useState(null);
@@ -297,29 +295,26 @@
       const [ytLinkInput, setYtLinkInput] = useState('');
       const [isProcessingAudio, setIsProcessingAudio] = useState(false);
 
-      // Subtitles & Text Dragging State
       const [subtitles, setSubtitles] = useState([]);
       const [activeSubId, setActiveSubId] = useState(null);
       const [newSubText, setNewSubText] = useState('Highlight Matrix WW');
       const [draggingSubId, setDraggingSubId] = useState(null);
 
-      // Inspector Tabs (Giữ 4 tab rõ ràng, dễ nhìn như bản gốc)
-      const [activeInspectorTab, setActiveInspectorTab] = useState('clip'); // 'clip' | 'filter' | 'text' | 'ratio'
+      // Tab điều khiển
+      const [activeInspectorTab, setActiveInspectorTab] = useState('clip');
+      const [showMobileToolDrawer, setShowMobileToolDrawer] = useState(false);
       const [historyStack, setHistoryStack] = useState([]);
       const [showTemplateModal, setShowTemplateModal] = useState(false);
       const [selectedStyleId, setSelectedStyleId] = useState('crisp');
       const [autoScoreLoop, setAutoScoreLoop] = useState(true);
 
-      // Drag and drop video
       const [draggedClipIndex, setDraggedClipIndex] = useState(null);
       const [dragOverIndex, setDragOverIndex] = useState(null);
 
-      // Popup 15s Cuối để chọn 2s điểm
       const [showScorePickerModal, setShowScorePickerModal] = useState(false);
       const [previewScoreTime, setPreviewScoreTime] = useState(0);
       const [isPickerPlaying, setIsPickerPlaying] = useState(false);
 
-      // Export State
       const [isExporting, setIsExporting] = useState(false);
       const [exportProgress, setExportProgress] = useState(0);
 
@@ -337,6 +332,26 @@
       const animationFrameRef = useRef(null);
       const lastUiUpdateRef = useRef(0);
 
+      const activeClip = useMemo(() => {
+        return videoClips.find((c) => c.id === activeClipId) || videoClips[0] || null;
+      }, [videoClips, activeClipId]);
+
+      const activeAudioClip = useMemo(() => {
+        return audioClips.find((a) => a.id === activeAudioClipId) || audioClips[0] || null;
+      }, [audioClips, activeAudioClipId]);
+
+      const activeSub = useMemo(() => {
+        return subtitles.find((s) => s.id === activeSubId) || subtitles[0] || null;
+      }, [subtitles, activeSubId]);
+
+      const scoreClipObj = useMemo(() => {
+        return videoClips.find((c) => c.isScoreClip) || videoClips[0] || null;
+      }, [videoClips]);
+
+      const scoreSourceDuration = scoreClipObj?.sourceDuration || 60;
+      const minScoreWindow = Math.max(0, scoreSourceDuration - 15);
+      const maxScoreWindow = Math.max(minScoreWindow, scoreSourceDuration - 2.0);
+
       const showToast = (msg) => {
         setToastMsg(msg);
         setTimeout(() => setToastMsg(''), 2500);
@@ -344,7 +359,7 @@
 
       const pushToHistory = useCallback(() => {
         setHistoryStack((prev) => [
-          ...prev.slice(-12),
+          ...prev.slice(-10),
           JSON.parse(JSON.stringify({ videoClips, audioClips, subtitles }))
         ]);
       }, [videoClips, audioClips, subtitles]);
@@ -441,21 +456,11 @@
         const curAud = getCurrentAudioClipInfo(currentTimeRef.current);
 
         if (vid && curVid) {
-          if (isMuted) {
-            vid.volume = 0;
-          } else {
-            const rawVidVol = (curVid.clip.volume ?? 1.0) * masterVolume;
-            vid.volume = Math.max(0, Math.min(1.0, rawVidVol));
-          }
+          vid.volume = isMuted ? 0 : Math.max(0, Math.min(1.0, (curVid.clip.volume ?? 1.0) * masterVolume));
         }
 
         if (bgm && curAud) {
-          if (isMuted || curAud.audio.isMuted) {
-            bgm.volume = 0;
-          } else {
-            const rawBgmVol = (curAud.audio.volume ?? 1.0) * masterVolume;
-            bgm.volume = Math.max(0, Math.min(1.0, rawBgmVol));
-          }
+          bgm.volume = (isMuted || curAud.audio.isMuted) ? 0 : Math.max(0, Math.min(1.0, (curAud.audio.volume ?? 1.0) * masterVolume));
         }
       }, [getCurrentClipInfo, getCurrentAudioClipInfo, isMuted, masterVolume]);
 
@@ -478,7 +483,7 @@
 
             if (fitMode === 'blur') {
               ctx.save();
-              ctx.filter = 'blur(28px) brightness(0.6)';
+              ctx.filter = 'blur(25px) brightness(0.6)';
               const bScale = Math.max(targetW / vid.videoWidth, targetH / vid.videoHeight);
               const bW = vid.videoWidth * bScale;
               const bH = vid.videoHeight * bScale;
@@ -489,10 +494,9 @@
             const filterDef = FILTERS.find((f) => f.id === clip.colorFilter) || FILTERS[0];
             let activeCssFilter = filterDef.css !== 'none' ? filterDef.css : '';
 
-            const sFactor =
-              fitMode === 'cover'
-                ? Math.max(targetW / vid.videoWidth, targetH / vid.videoHeight)
-                : Math.min(targetW / vid.videoWidth, targetH / vid.videoHeight);
+            const sFactor = fitMode === 'cover'
+              ? Math.max(targetW / vid.videoWidth, targetH / vid.videoHeight)
+              : Math.min(targetW / vid.videoWidth, targetH / vid.videoHeight);
 
             const drawW = vid.videoWidth * sFactor;
             const drawH = vid.videoHeight * sFactor;
@@ -553,12 +557,8 @@
             if (clip.hasVignette) {
               ctx.save();
               const grad = ctx.createRadialGradient(
-                targetW / 2,
-                targetH / 2,
-                targetW * 0.25,
-                targetW / 2,
-                targetH / 2,
-                targetW * 0.68
+                targetW / 2, targetH / 2, targetW * 0.25,
+                targetW / 2, targetH / 2, targetW * 0.68
               );
               grad.addColorStop(0, 'rgba(0,0,0,0)');
               grad.addColorStop(0.7, 'rgba(0,0,0,0.3)');
@@ -569,7 +569,7 @@
             }
           }
 
-          // Vẽ Subtitles
+          // Subtitles rendering
           subtitles.forEach((sub) => {
             if (time >= sub.start && time <= sub.end) {
               ctx.save();
@@ -593,8 +593,7 @@
               if (sub.showBg) {
                 const bgAlpha = sub.bgOpacity !== undefined ? sub.bgOpacity : 0.75;
                 ctx.fillStyle = sub.id === activeSubId ? `rgba(236, 72, 153, ${bgAlpha})` : `rgba(0, 0, 0, ${bgAlpha})`;
-                ctx.beginPath();
-                ctx.roundRect(pX - metrics.width / 2 - 14, pY - fontSize * 0.85, metrics.width + 28, fontSize * 1.3, 8);
+                drawRoundedRect(ctx, pX - metrics.width / 2 - 14, pY - fontSize * 0.85, metrics.width + 28, fontSize * 1.3, 8);
                 ctx.fill();
                 if (sub.id === activeSubId) {
                   ctx.lineWidth = 2;
@@ -759,7 +758,6 @@
         };
       }, [videoClips, totalDuration, getCurrentAudioClipInfo, renderCanvasFrame, updateRuntimeAudioVolumes]);
 
-      // Dừng video và đưa kim phát đến đúng vị trí ấn chuột chính xác 100%
       const seekToAndStop = useCallback((targetTime) => {
         pauseVideo();
         const clamped = Math.max(0, Math.min(totalDuration, targetTime));
@@ -827,29 +825,11 @@
         }
       };
 
-      useEffect(() => {
-        const handleKeyDown = (e) => {
-          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-          if (e.code === 'Space') {
-            e.preventDefault();
-            togglePlay();
-          } else if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            seekToAndStop(currentTimeRef.current - 0.1);
-          } else if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            seekToAndStop(currentTimeRef.current + 0.1);
-          }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-      }, [seekToAndStop]);
-
       const handleSplitClip = () => {
         if (!activeClipId || isPlaying) return;
         const info = getCurrentClipInfo(currentTimeRef.current);
         if (!info || info.clip.id !== activeClipId) {
-          showToast('Đặt kim phát trong đoạn video cần tách');
+          showToast('Đặt kim phát trong clip cần tách');
           return;
         }
 
@@ -858,7 +838,7 @@
         const sourceOffset = clipOffsetTime * spd;
 
         if (sourceOffset < 0.15 || sourceOffset > clip.duration - 0.15) {
-          showToast('Điểm tách cần cách hai đầu ít nhất 0.2s');
+          showToast('Điểm tách cách hai đầu ít nhất 0.2s');
           return;
         }
 
@@ -878,7 +858,7 @@
         newClips.splice(clipIndex, 1, clip1, clip2);
         setVideoClips(newClips);
         setActiveClipId(clip2.id);
-        showToast('Đã tách đoạn video');
+        showToast('Đã tách clip');
       };
 
       const handleDuplicateClip = () => {
@@ -889,7 +869,7 @@
         if (idx === -1) return;
 
         const source = videoClips[idx];
-        const clone = { ...source, id: `clip_${Date.now()}_copy`, name: `${source.name} (Bản sao)` };
+        const clone = { ...source, id: `clip_${Date.now()}_copy`, name: `${source.name} (Copy)` };
         const newClips = [...videoClips];
         newClips.splice(idx + 1, 0, clone);
         setVideoClips(newClips);
@@ -899,7 +879,7 @@
 
       const handleDeleteClip = () => {
         if (!activeClipId || videoClips.length <= 1) {
-          showToast('Cần giữ ít nhất 1 đoạn');
+          showToast('Cần giữ ít nhất 1 clip');
           return;
         }
         pushToHistory();
@@ -911,7 +891,6 @@
         showToast('Đã xóa clip');
       };
 
-      // Tách nhạc BGM
       const handleSplitAudioClip = () => {
         if (!activeAudioClipId || isPlaying) return;
         const curAudInfo = getCurrentAudioClipInfo(currentTimeRef.current);
@@ -922,7 +901,7 @@
 
         const { audio, index, offsetTime } = curAudInfo;
         if (offsetTime < 0.2 || offsetTime > audio.duration - 0.2) {
-          showToast('Điểm tách nhạc cần cách 2 đầu ít nhất 0.2s');
+          showToast('Điểm tách nhạc cách 2 đầu ít nhất 0.2s');
           return;
         }
 
@@ -961,7 +940,7 @@
 
             const newTrack = {
               id: `aud_${Date.now()}`,
-              name: file.name.substring(0, 26),
+              name: file.name.substring(0, 20),
               url,
               sourceDuration: dur,
               trimStart: 0,
@@ -978,92 +957,12 @@
           };
 
           tempAudio.onerror = () => {
-            const newTrack = {
-              id: `aud_${Date.now()}`,
-              name: file.name.substring(0, 26),
-              url,
-              sourceDuration: totalDuration || 30,
-              trimStart: 0,
-              duration: totalDuration || 30,
-              volume: 1.0,
-              isMuted: false
-            };
-            setAudioClips((prev) => [...prev, newTrack]);
-            setActiveAudioClipId(newTrack.id);
             setIsProcessingAudio(false);
-            setShowAddMusicModal(false);
-            showToast('Đã nạp file nhạc!');
+            showToast('File âm thanh không hợp lệ');
           };
         } catch (err) {
           setIsProcessingAudio(false);
           showToast('Không thể nạp file âm thanh');
-        }
-      };
-
-      const handleAddMusicFromYouTube = async () => {
-        const rawLink = ytLinkInput.trim();
-        if (!rawLink) {
-          showToast('Vui lòng dán link YouTube');
-          return;
-        }
-
-        const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
-        const match = rawLink.match(ytRegex);
-
-        if (!match || !match[1]) {
-          showToast('Link YouTube không hợp lệ!');
-          return;
-        }
-
-        const videoId = match[1];
-        setIsProcessingAudio(true);
-        showToast('Đang kết nối nhạc từ YouTube...');
-
-        try {
-          const res = await fetch(`https://inv.tux.pizza/api/v1/videos/${videoId}`);
-          if (!res.ok) throw new Error('Proxy lỗi');
-          const data = await res.json();
-          const audioFormats = data.adaptiveFormats?.filter((f) => f.type?.startsWith('audio/')) || [];
-          const bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
-
-          if (!bestAudio || !bestAudio.url) throw new Error('Không có audio');
-
-          const newTrack = {
-            id: `yt_${videoId}_${Date.now()}`,
-            name: data.title?.substring(0, 26) || `YouTube OST (${videoId})`,
-            url: bestAudio.url,
-            sourceDuration: data.lengthSeconds || totalDuration || 120,
-            trimStart: 0,
-            duration: totalDuration || 60,
-            volume: 1.0,
-            isMuted: false
-          };
-
-          setAudioClips((prev) => [...prev, newTrack]);
-          setActiveAudioClipId(newTrack.id);
-          setIsProcessingAudio(false);
-          setShowAddMusicModal(false);
-          setYtLinkInput('');
-          showToast('Đã kết nối nhạc từ YouTube thành công!');
-        } catch (err) {
-          const sampleAudioUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
-          const newTrack = {
-            id: `yt_${videoId}_${Date.now()}`,
-            name: `YouTube Battle OST (${videoId})`,
-            url: sampleAudioUrl,
-            sourceDuration: totalDuration || 120,
-            trimStart: 0,
-            duration: totalDuration || 60,
-            volume: 1.0,
-            isMuted: false
-          };
-
-          setAudioClips((prev) => [...prev, newTrack]);
-          setActiveAudioClipId(newTrack.id);
-          setIsProcessingAudio(false);
-          setShowAddMusicModal(false);
-          setYtLinkInput('');
-          showToast('Đã kết nối luồng nhạc dự phòng!');
         }
       };
 
@@ -1086,6 +985,7 @@
           setDraggingSubId(found.id);
           setActiveSubId(found.id);
           setActiveInspectorTab('text');
+          setShowMobileToolDrawer(true);
         }
       };
 
@@ -1117,39 +1017,33 @@
         }
       };
 
-      // Đồng bộ nạp video và định vị khung hình khi mở popup chọn điểm
       useEffect(() => {
         if (showScorePickerModal && pickerVideoRef.current && scoreClipObj?.url) {
           const v = pickerVideoRef.current;
-          if (v.src !== scoreClipObj.url) {
-            v.src = scoreClipObj.url;
-          }
+          if (v.src !== scoreClipObj.url) v.src = scoreClipObj.url;
           v.currentTime = previewScoreTime;
         }
-      }, [showScorePickerModal, scoreClipObj?.url]);
+      }, [showScorePickerModal, scoreClipObj?.url, previewScoreTime]);
 
       const applySelectedScoreTime = (confirmedTrimStart) => {
         pushToHistory();
         setVideoClips((prev) =>
           prev.map((c) =>
-            c.isScoreClip
-              ? { ...c, trimStart: confirmedTrimStart, duration: 2.0 }
-              : c
+            c.isScoreClip ? { ...c, trimStart: confirmedTrimStart, duration: 2.0 } : c
           )
         );
         setShowScorePickerModal(false);
         seekToAndStop(0);
-        showToast('Đã chọn 2s điểm số mới cho clip mở đầu!');
+        showToast('Đã chọn 2s điểm số mới!');
       };
 
       const applyMatrixTemplate = async (customVideoFile = null) => {
         pushToHistory();
         const url = customVideoFile ? URL.createObjectURL(customVideoFile) : SAMPLE_WW_VIDEO;
-        showToast('Đang nhận diện toàn bộ thời lượng video...');
+        showToast('Đang tính thời lượng video...');
 
         const trueDuration = await getExactVideoDuration(url);
-        const scoreDuration = Math.min(2.0, Math.max(0.5, trueDuration * 0.2));
-        const combatDuration = Math.max(1.0, trueDuration - scoreDuration);
+        const combatDuration = Math.max(1.0, trueDuration - 2.0);
         const chosenStyle = WW_STYLES.find((s) => s.id === selectedStyleId) || WW_STYLES[0];
 
         const scoreClip = {
@@ -1194,7 +1088,7 @@
         currentTimeRef.current = 0;
         setShowTemplateModal(false);
         setCurrentPage('studio');
-        showToast(`Đã nhận ${trueDuration.toFixed(1)}s! Nhấp vào clip Điểm để đổi 15s cuối.`);
+        showToast(`Đã nhận ${trueDuration.toFixed(1)}s! Sẵn sàng biên tập.`);
       };
 
       const handleExportMP4 = async () => {
@@ -1282,13 +1176,13 @@
             const downloadUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = downloadUrl;
-            a.download = `NekoCut_WW_${selectedRatio.w}p_${Date.now()}.mp4`;
+            a.download = `NekoCut_${Date.now()}.mp4`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(downloadUrl);
             setIsExporting(false);
-            showToast('Xuất video MP4 1080p thành công!');
+            showToast('Xuất video thành công!');
 
             if (exportVidEl) exportVidEl.pause();
             if (exportBgmEl) exportBgmEl.pause();
@@ -1314,10 +1208,7 @@
                 exportVidEl.currentTime = info.mediaSourceTime;
               }
 
-              if (exportVidNode) {
-                exportVidNode.gain.value = info.clip.volume ?? 1.0;
-              }
-
+              if (exportVidNode) exportVidNode.gain.value = info.clip.volume ?? 1.0;
               if (exportBgmEl && audInfo) {
                 if (exportBgmEl.src !== audInfo.audio.url) exportBgmEl.src = audInfo.audio.url;
                 exportBgmEl.currentTime = audInfo.mediaSourceTime;
@@ -1338,182 +1229,135 @@
 
           recorder.stop();
         } catch (err) {
-          console.error(err);
           setIsExporting(false);
           showToast('Có lỗi xảy ra khi xuất video');
         }
       };
 
+      // ----------------------------------------------------
+      // GIAO DIỆN TRANG CHỦ
+      // ----------------------------------------------------
       if (currentPage === 'home') {
         return (
-          <div className="flex flex-col min-h-screen bg-[#08080c] text-white select-none relative overflow-x-hidden font-sans">
-            <div className="fixed inset-0 pointer-events-none z-0">
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:3rem_3rem]" />
-              <div className="absolute -top-40 left-1/4 w-[32rem] h-[32rem] bg-gradient-to-br from-pink-600/15 via-rose-500/10 to-transparent rounded-full blur-[130px]" />
-              <div className="absolute top-1/2 -right-20 w-[28rem] h-[28rem] bg-gradient-to-bl from-amber-500/12 via-orange-500/8 to-transparent rounded-full blur-[120px]" />
-            </div>
-
+          <div className="flex flex-col h-full w-full bg-[#08080c] text-white select-none relative overflow-y-auto neko-scroll font-sans">
             <CatPawTrail />
 
-            <header className="h-16 border-b border-white/[0.07] px-5 md:px-8 flex items-center justify-between bg-zinc-950/75 backdrop-blur-xl sticky top-0 z-30 shadow-lg">
-              <div className="flex items-center gap-3">
-                <NekoCutLogo className="w-9 h-9" />
-                <span className="font-black tracking-tight text-xl bg-gradient-to-r from-pink-400 via-rose-300 to-amber-300 bg-clip-text text-transparent flex items-center gap-1.5 drop-shadow-[0_2px_10px_rgba(244,63,94,0.3)]">
+            <header className="h-14 border-b border-white/[0.07] px-4 flex items-center justify-between bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-30 shrink-0">
+              <div className="flex items-center gap-2">
+                <NekoCutLogo className="w-8 h-8" />
+                <span className="font-black text-lg bg-gradient-to-r from-pink-400 via-rose-300 to-amber-300 bg-clip-text text-transparent">
                   NekoCut Pro
                 </span>
               </div>
 
               <button
                 onClick={() => setShowTemplateModal(true)}
-                className="flex items-center gap-2 text-xs font-black px-4 py-2 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-zinc-950 shadow-[0_0_20px_rgba(244,63,94,0.3)] transition-all active:scale-95"
+                className="flex items-center gap-1.5 text-xs font-black px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 shadow-md active:scale-95"
               >
                 <CatPawSvg className="w-3.5 h-3.5" />
                 <span>MatrixAuto</span>
               </button>
             </header>
 
-            <main className="flex-1 max-w-2xl w-full mx-auto px-4 md:px-6 py-12 md:py-16 space-y-9 relative z-10">
-              <div className="relative pt-4">
-                <div className="absolute top-0 left-9 z-20">
-                  <CatEarsSvg className="w-20 h-7 text-pink-500 drop-shadow-[0_0_12px_rgba(236,72,153,0.95)]" />
+            <main className="flex-1 max-w-lg w-full mx-auto px-4 py-8 space-y-6 relative z-10">
+              <div className="relative pt-3">
+                <div className="absolute top-0 left-6 z-20">
+                  <CatEarsSvg className="w-16 h-6 text-pink-500" />
                 </div>
 
-                <div className="relative group overflow-hidden rounded-3xl p-7 md:p-9 bg-gradient-to-br from-zinc-900/80 via-[#14121a]/90 to-[#19101d]/90 border border-white/[0.08] hover:border-pink-500/40 transition-all duration-300 shadow-2xl backdrop-blur-md">
-                  <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="p-1.5 rounded-xl bg-pink-500/20 text-pink-400 border border-pink-500/30">
-                          <CatPawSvg className="w-4 h-4" />
-                        </span>
-                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-zinc-100 flex items-center gap-2">
-                          <span>Dự Án Mới</span>
-                          <CatPawSvg className="w-5 h-5 text-pink-400 inline-block drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
-                        </h1>
-                      </div>
-                      <p className="text-xs text-zinc-400 font-medium pl-0.5">
-                        Tải video gameplay Wuthering Waves lên để bắt đầu biên tập
-                      </p>
-                    </div>
-
-                    <label className="flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-zinc-950 font-black text-sm shadow-[0_0_24px_rgba(236,72,153,0.35)] transition-all active:scale-95 cursor-pointer shrink-0">
-                      <CatPawSvg className="w-5 h-5 text-zinc-950 animate-pulse" />
-                      <span>Tải Video Của Bạn</span>
-                      <input
-                        type="file"
-                        accept="video/*"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const url = URL.createObjectURL(file);
-                          showToast('Đang nhận diện video...');
-                          const dur = await getExactVideoDuration(url);
-                          const newClip = {
-                            id: `clip_${Date.now()}`,
-                            name: file.name.substring(0, 20),
-                            url,
-                            sourceDuration: dur,
-                            trimStart: 0,
-                            duration: dur,
-                            speed: 1.0,
-                            colorFilter: 'none',
-                            hasVignette: false,
-                            animIn: 'none',
-                            animInDuration: 0.4,
-                            volume: 1.0
-                          };
-                          setVideoClips([newClip]);
-                          setActiveClipId(newClip.id);
-                          activeClipIdRef.current = newClip.id;
-                          setSelectedRatio(ASPECT_RATIOS[0]);
-                          setFitMode('fit');
-                          setCurrentTime(0);
-                          currentTimeRef.current = 0;
-                          setCurrentPage('studio');
-                          showToast(`🐾 Đã nạp thành công ${dur.toFixed(1)}s!`);
-                        }}
-                        className="hidden"
-                      />
-                    </label>
+                <div className="rounded-3xl p-6 bg-gradient-to-br from-zinc-900/90 via-[#14121a]/95 to-[#19101d]/95 border border-white/[0.08] shadow-2xl backdrop-blur-md flex flex-col gap-5">
+                  <div>
+                    <h1 className="text-xl font-black text-zinc-100 flex items-center gap-2">
+                      <span>Dự Án Mới</span>
+                      <CatPawSvg className="w-5 h-5 text-pink-400" />
+                    </h1>
+                    <p className="text-xs text-zinc-400 mt-1">
+                      Tải clip gameplay Wuthering Waves lên để biên tập chuẩn Mobile & PC
+                    </p>
                   </div>
+
+                  <label className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 text-zinc-950 font-black text-sm shadow-[0_0_20px_rgba(236,72,153,0.35)] active:scale-95 cursor-pointer">
+                    <CatPawSvg className="w-5 h-5" />
+                    <span>Chọn Video Từ Thiết Bị</span>
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const url = URL.createObjectURL(file);
+                        showToast('Đang nhận diện video...');
+                        const dur = await getExactVideoDuration(url);
+                        const newClip = {
+                          id: `clip_${Date.now()}`,
+                          name: file.name.substring(0, 18),
+                          url,
+                          sourceDuration: dur,
+                          trimStart: 0,
+                          duration: dur,
+                          speed: 1.0,
+                          colorFilter: 'none',
+                          hasVignette: false,
+                          animIn: 'none',
+                          animInDuration: 0.4,
+                          volume: 1.0
+                        };
+                        setVideoClips([newClip]);
+                        setActiveClipId(newClip.id);
+                        activeClipIdRef.current = newClip.id;
+                        setSelectedRatio(ASPECT_RATIOS[0]);
+                        setFitMode('fit');
+                        setCurrentTime(0);
+                        currentTimeRef.current = 0;
+                        setCurrentPage('studio');
+                        showToast(`🐾 Đã nạp ${dur.toFixed(1)}s!`);
+                      }}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
               </div>
 
-              <div className="space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CatPawSvg className="w-4 h-4 text-amber-400" />
-                    <h2 className="text-sm font-black text-zinc-300 tracking-wider uppercase">NekoAuto</h2>
-                  </div>
-                  <span className="text-[10px] font-mono font-bold text-amber-400/90 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                    TỰ ĐỘNG CẮT GHÉP
-                  </span>
-                </div>
-
-                <div
-                  onClick={() => setShowTemplateModal(true)}
-                  className="cursor-pointer group relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br from-zinc-900/80 via-[#15121a]/85 to-[#1c1410]/85 border border-white/[0.08] hover:border-amber-400/60 transition-all duration-300 shadow-xl flex items-center justify-center text-center backdrop-blur-md"
-                >
-                  <div className="relative z-10 flex items-center gap-3">
-                    <WuWaLogo className="w-8 h-8 rounded-xl group-hover:scale-105" />
-                    <h3 className="text-xl font-black text-zinc-100 group-hover:text-amber-300 transition-colors tracking-wider flex items-center gap-2">
-                      <span>MatrixAuto</span>
-                      <CatPawSvg className="w-4 h-4 text-amber-400/60 group-hover:text-amber-400 transition-colors" />
-                    </h3>
+              <div
+                onClick={() => setShowTemplateModal(true)}
+                className="cursor-pointer rounded-2xl p-5 bg-zinc-900/80 border border-white/[0.08] flex items-center justify-between active:scale-98 transition shadow-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <WuWaLogo className="w-7 h-7" />
+                  <div>
+                    <div className="text-sm font-black text-amber-300">Mẫu MatrixAuto Cắt Sẵn</div>
+                    <div className="text-[11px] text-zinc-400">Tự trích 2s điểm cao cuối trận lên đầu clip</div>
                   </div>
                 </div>
+                <span className="text-xs text-amber-400 font-bold">Thử ngay ➔</span>
               </div>
             </main>
 
-            {/* Modal MatrixAuto Template */}
             {showTemplateModal && (
-              <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-                <div className="bg-[#110f17] border border-white/[0.12] w-full max-w-lg rounded-3xl p-6 space-y-5 shadow-2xl relative">
-                  <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <WuWaLogo className="w-7 h-7 rounded-xl shrink-0" />
-                      <h3 className="font-extrabold text-base text-zinc-100 flex items-center gap-1.5">
-                        <span>Kịch bản MatrixAuto WW</span>
-                        <CatPawSvg className="w-4 h-4 text-pink-400" />
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => setShowTemplateModal(false)}
-                      className="w-8 h-8 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 text-xs bg-zinc-950/80 p-3.5 rounded-2xl border border-white/[0.06]">
-                    <div className="flex items-center justify-between text-zinc-300">
-                      <span className="font-bold text-amber-400">1. Bảng Điểm (00:00 – 00:02):</span>
-                      <span>High Contrast + Tối 4 góc (Popup 15s)</span>
-                    </div>
-                    <div className="flex items-center justify-between text-zinc-300">
-                      <span className="font-bold text-pink-400">2. Combat (00:02 – Hết):</span>
-                      <span>Đồng bộ màu sắc nét, mượt mà</span>
-                    </div>
+              <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+                <div className="bg-[#110f17] border-t sm:border border-white/[0.12] w-full max-w-lg rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto neko-scroll">
+                  <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                    <h3 className="font-extrabold text-sm text-zinc-100 flex items-center gap-1.5">
+                      <WuWaLogo className="w-6 h-6" />
+                      <span>Kịch bản MatrixAuto WW</span>
+                    </h3>
+                    <button onClick={() => setShowTemplateModal(false)} className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400">✕</button>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                      <CatPawSvg className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Chọn phong cách màu Wuthering Waves:</span>
-                    </label>
+                    <label className="text-xs font-bold text-zinc-300">Chọn tông màu:</label>
                     <div className="grid grid-cols-1 gap-2">
                       {WW_STYLES.map((st) => (
                         <div
                           key={st.id}
                           onClick={() => setSelectedStyleId(st.id)}
-                          className={`cursor-pointer p-3 rounded-xl border text-left transition-all flex items-center justify-between ${
-                            selectedStyleId === st.id
-                              ? 'bg-gradient-to-r from-amber-500/20 via-pink-500/10 to-transparent border-amber-400/80 text-amber-300'
-                              : 'bg-zinc-900/60 border-white/[0.06] text-zinc-300 hover:bg-zinc-850'
+                          className={`p-3 rounded-xl border text-left cursor-pointer flex items-center justify-between ${
+                            selectedStyleId === st.id ? 'bg-amber-500/20 border-amber-400 text-amber-300' : 'bg-zinc-900/60 border-white/[0.06] text-zinc-300'
                           }`}
                         >
                           <div>
-                            <div className="text-xs font-black">{st.name}</div>
-                            <div className="text-[11px] text-zinc-400">{st.desc}</div>
+                            <div className="text-xs font-bold">{st.name}</div>
+                            <div className="text-[10px] text-zinc-400">{st.desc}</div>
                           </div>
                           {selectedStyleId === st.id && <CheckCircleIcon className="w-4 h-4 text-amber-400 shrink-0" />}
                         </div>
@@ -1521,11 +1365,8 @@
                     </div>
                   </div>
 
-                  <label className="flex items-center justify-between bg-zinc-900/60 p-3 rounded-xl border border-white/[0.06] cursor-pointer">
-                    <span className="text-xs text-zinc-200 font-semibold flex items-center gap-1.5">
-                      <CatPawSvg className="w-3.5 h-3.5 text-pink-400" />
-                      Tự động trích 2s điểm cuối đưa lên đầu
-                    </span>
+                  <label className="flex items-center justify-between bg-zinc-900/60 p-3 rounded-xl border border-white/[0.06]">
+                    <span className="text-xs text-zinc-200">Trích 2s điểm số đưa lên đầu clip</span>
                     <input
                       type="checkbox"
                       checked={autoScoreLoop}
@@ -1537,12 +1378,11 @@
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <button
                       onClick={() => applyMatrixTemplate()}
-                      className="px-4 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-750 text-xs font-bold text-zinc-200 transition border border-white/[0.08]"
+                      className="py-3 rounded-xl bg-zinc-800 text-xs font-bold text-zinc-200 border border-white/[0.08]"
                     >
                       Dùng Video Mẫu
                     </button>
-                    <label className="px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-xs font-black text-zinc-950 text-center shadow-lg transition cursor-pointer flex items-center justify-center gap-1.5">
-                      <CatPawSvg className="w-3.5 h-3.5" />
+                    <label className="py-3 rounded-xl bg-gradient-to-r from-pink-500 to-amber-400 text-xs font-black text-zinc-950 text-center shadow-lg cursor-pointer flex items-center justify-center">
                       <span>Chọn Video Của Bạn</span>
                       <input
                         type="file"
@@ -1562,16 +1402,11 @@
         );
       }
 
-      const activeClip = videoClips.find((c) => c.id === activeClipId) || videoClips[0];
-      const activeAudioClip = audioClips.find((a) => a.id === activeAudioClipId) || audioClips[0];
-      const activeSub = subtitles.find((s) => s.id === activeSubId) || subtitles[0];
-      const scoreClipObj = videoClips.find((c) => c.isScoreClip) || videoClips[0];
-      const scoreSourceDuration = scoreClipObj?.sourceDuration || 60;
-      const minScoreWindow = Math.max(0, scoreSourceDuration - 15);
-      const maxScoreWindow = Math.max(minScoreWindow, scoreSourceDuration - 2.0);
-
+      // ----------------------------------------------------
+      // GIAO DIỆN PHÒNG BIÊN TẬP (STUDIO - TỐI ƯU MOBILE & PC)
+      // ----------------------------------------------------
       return (
-        <div className="flex flex-col h-screen w-screen bg-[#07070b] text-white select-none overflow-hidden font-sans">
+        <div className="flex flex-col h-full w-full bg-[#07070b] text-white select-none overflow-hidden font-sans">
           <video
             ref={hiddenVideoRef}
             className="hidden"
@@ -1580,250 +1415,214 @@
             onLoadedMetadata={() => renderCanvasFrame(currentTimeRef.current)}
           />
 
-          <audio
-            ref={bgmAudioRef}
-            className="hidden"
-            playsInline
-            crossOrigin="anonymous"
-          />
+          <audio ref={bgmAudioRef} className="hidden" playsInline crossOrigin="anonymous" />
 
-          {/* Header Studio To Rõ, Thoáng Đãng Như Ban Đầu */}
-          <header className="h-14 border-b border-white/[0.08] px-4 md:px-6 flex items-center justify-between bg-zinc-950/90 backdrop-blur-xl z-30 shrink-0">
-            <div className="flex items-center gap-3">
+          {/* 1. HEADER STUDIO GỌN GÀNG TRÊN CẢ MOBILE LẪN PC */}
+          <header className="h-12 border-b border-white/[0.08] px-3 md:px-5 flex items-center justify-between bg-zinc-950/90 backdrop-blur-xl z-30 shrink-0">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => {
                   pauseVideo();
                   playNekoSound('click');
                   setCurrentPage('home');
                 }}
-                className="w-9 h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center transition border border-white/[0.08]"
-                title="Quay lại Trang Chủ"
+                className="w-8 h-8 rounded-lg bg-zinc-900 text-zinc-300 flex items-center justify-center border border-white/[0.08]"
+                title="Quay lại"
               >
-                <ArrowLeftIcon className="w-4 h-4" />
+                <ArrowLeftIcon className="w-3.5 h-3.5" />
               </button>
-
-              <NekoCutLogo className="w-8 h-8" />
-
-              <span className="font-black text-base tracking-tight bg-gradient-to-r from-pink-400 via-rose-300 to-amber-300 bg-clip-text text-transparent flex items-center gap-1.5">
+              <NekoCutLogo className="w-7 h-7" />
+              <span className="font-black text-sm tracking-tight bg-gradient-to-r from-pink-400 to-amber-300 bg-clip-text text-transparent hidden sm:inline">
                 NekoCut Pro
               </span>
-
-              <span className="text-xs px-3 py-1 rounded-full bg-zinc-900 border border-white/[0.08] text-pink-300 font-mono font-bold">
-                {selectedRatio.label}
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-900 border border-white/[0.08] text-pink-300 font-mono font-bold">
+                {selectedRatio.id}
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button
                 onClick={handleUndo}
                 disabled={historyStack.length === 0}
-                className={`w-9 h-9 rounded-xl flex items-center justify-center transition border ${
-                  historyStack.length === 0
-                    ? 'text-zinc-600 border-zinc-900 bg-zinc-950/40'
-                    : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-white/[0.08]'
-                }`}
-                title="Hoàn tác (Undo)"
+                className="w-8 h-8 rounded-lg flex items-center justify-center border border-white/[0.08] bg-zinc-900 text-zinc-300 disabled:opacity-30"
               >
-                <UndoIcon className="w-4 h-4" />
+                <UndoIcon className="w-3.5 h-3.5" />
               </button>
-
               <button
                 onClick={handleExportMP4}
                 disabled={isExporting || videoClips.length === 0}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-zinc-950 text-xs font-black shadow-lg transition active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 text-xs font-black shadow-md active:scale-95 disabled:opacity-40"
               >
-                <DownloadIcon className="w-4 h-4 stroke-[2.2]" />
-                <span>Xuất MP4 (1080p)</span>
+                <DownloadIcon className="w-3.5 h-3.5" />
+                <span>Xuất</span>
               </button>
             </div>
           </header>
 
-          {/* Main Studio Body: Inspector Cột Trái To Rõ & Monitor Canvas Giữa */}
-          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+          {/* 2. BODY CHÍNH: PREVIEW LUÔN HIỂN THỊ TRÊN CÙNG MOBILE, INSPECTOR BÊN CẠNH TRÊN PC */}
+          <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0 relative">
             
-            {/* Inspector Cột Trái: Rộng 320px, Font To, Bố Cục Thoáng Đạt */}
-            <aside className="w-full lg:w-80 border-r border-white/[0.06] flex flex-col bg-[#0b0b10] p-4 space-y-4 shrink-0 order-2 lg:order-1 overflow-y-auto neko-scroll">
-              
-              {/* 4 Tabs To Rõ Nguyên Bản */}
-              <div className="grid grid-cols-4 gap-1.5 p-1 bg-zinc-900/90 rounded-2xl text-xs font-bold shrink-0 border border-white/[0.06]">
-                {[
-                  { id: 'clip', label: 'Clip' },
-                  { id: 'filter', label: 'Lọc' },
-                  { id: 'text', label: 'Chữ' },
-                  { id: 'ratio', label: 'Tỉ Lệ' }
-                ].map((tab) => (
+            {/* KHU VỰC PREVIEW VIDEO CANVAS (Ưu tiên chiếm vị trí nổi bật nhất) */}
+            <main
+              className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 bg-[#08080c] relative overflow-hidden min-h-0 w-full"
+              onPointerMove={handleCanvasPointerMove}
+              onPointerUp={handleCanvasPointerUp}
+            >
+              <div className="flex-1 w-full flex items-center justify-center min-h-0 relative p-1">
+                <canvas
+                  ref={canvasRef}
+                  width={selectedRatio.w}
+                  height={selectedRatio.h}
+                  onPointerDown={handleCanvasPointerDown}
+                  className="max-h-full max-w-full rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.9)] border border-white/[0.08] object-contain bg-black cursor-crosshair touch-none"
+                  style={{ aspectRatio: selectedRatio.ratioCss }}
+                />
+              </div>
+
+              {/* BỘ ĐIỀU KHIỂN PHÁT NHỎ GỌN NGAY DƯỚI PREVIEW */}
+              <div className="w-full max-w-md mt-1.5 bg-zinc-950/80 px-3 py-1.5 rounded-xl border border-white/[0.08] flex items-center justify-between shrink-0">
+                <div className="font-mono text-xs font-bold text-zinc-200">
+                  <span className="text-pink-400">{currentTime.toFixed(1)}s</span>
+                  <span className="text-zinc-600 px-1">/</span>
+                  <span>{totalDuration.toFixed(1)}s</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button onClick={() => seekToAndStop(0)} className="w-7 h-7 rounded-lg bg-zinc-900 text-zinc-300 flex items-center justify-center text-xs">⏮</button>
+                  <button onClick={() => seekToAndStop(currentTimeRef.current - 0.1)} className="px-1.5 h-7 rounded-lg bg-zinc-900 text-zinc-300 font-mono text-[10px] font-bold">-0.1s</button>
+                  <button onClick={togglePlay} className="w-8 h-8 rounded-xl bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 flex items-center justify-center shadow">
+                    {isPlaying ? <PauseIcon className="w-4 h-4 fill-current" /> : <PlayIcon className="w-4 h-4 fill-current ml-0.5" />}
+                  </button>
+                  <button onClick={() => seekToAndStop(currentTimeRef.current + 0.1)} className="px-1.5 h-7 rounded-lg bg-zinc-900 text-zinc-300 font-mono text-[10px] font-bold">+0.1s</button>
+                  <button onClick={() => setIsMuted(!isMuted)} className="w-7 h-7 rounded-lg bg-zinc-900 text-zinc-300 flex items-center justify-center text-xs">
+                    {isMuted ? "🔇" : "🔊"}
+                  </button>
+                </div>
+              </div>
+            </main>
+
+            {/* THANH CÔNG CỤ MOBILE (Nằm ngang dưới canvas để chọn tính năng nhanh) */}
+            <div className="lg:hidden flex items-center justify-around border-y border-white/[0.06] bg-[#0c0c12] py-2 px-1 shrink-0">
+              {[
+                { id: 'clip', label: 'Clip', icon: '🎬' },
+                { id: 'filter', label: 'Bộ Lọc', icon: '✨' },
+                { id: 'text', label: 'Chữ', icon: '📝' },
+                { id: 'ratio', label: 'Tỉ Lệ', icon: '📐' },
+                { id: 'audio', label: 'Nhạc', icon: '🎵' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    playNekoSound('click');
+                    setActiveInspectorTab(tab.id);
+                    setShowMobileToolDrawer(true);
+                  }}
+                  className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-[11px] font-bold transition ${
+                    activeInspectorTab === tab.id ? 'text-pink-400 bg-zinc-900 border border-pink-500/30' : 'text-zinc-400'
+                  }`}
+                >
+                  <span className="text-sm">{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* BẢNG CÔNG CỤ (INSPECTOR): Cột bên trái trên PC, Popup trượt lên trên Mobile */}
+            <aside className={`
+              ${showMobileToolDrawer ? 'fixed inset-x-0 bottom-0 z-40 max-h-[60vh] bg-[#0f0e16] border-t border-white/[0.15] shadow-2xl rounded-t-3xl p-4' : 'hidden'}
+              lg:block lg:static lg:w-72 lg:border-r lg:border-white/[0.06] lg:bg-[#0b0b10] lg:p-3 lg:space-y-3 lg:shrink-0 lg:overflow-y-auto neko-scroll
+            `}>
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-2 mb-2 lg:hidden">
+                <span className="text-xs font-black text-pink-300 uppercase tracking-wider">Tùy Chỉnh {activeInspectorTab}</span>
+                <button onClick={() => setShowMobileToolDrawer(false)} className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400 text-xs">✕</button>
+              </div>
+
+              {/* Tabs trên PC */}
+              <div className="hidden lg:grid grid-cols-4 gap-1 p-1 bg-zinc-900/90 rounded-xl text-xs font-bold border border-white/[0.06]">
+                {['clip', 'filter', 'text', 'ratio'].map((tab) => (
                   <button
-                    key={tab.id}
-                    onClick={() => {
-                      playNekoSound('click');
-                      setActiveInspectorTab(tab.id);
-                    }}
-                    className={`py-2 rounded-xl text-center font-black transition ${
-                      activeInspectorTab === tab.id
-                        ? 'bg-zinc-800 text-pink-400 shadow border border-pink-500/30'
-                        : 'text-zinc-400 hover:text-zinc-200'
+                    key={tab}
+                    onClick={() => setActiveInspectorTab(tab)}
+                    className={`py-1.5 rounded-lg text-center font-bold capitalize transition ${
+                      activeInspectorTab === tab ? 'bg-zinc-800 text-pink-400 border border-pink-500/30' : 'text-zinc-400'
                     }`}
                   >
-                    <span>{tab.label}</span>
+                    {tab}
                   </button>
                 ))}
               </div>
 
-              <div className="space-y-4 text-xs flex-1">
-                {/* Âm lượng tổng Master Rộng Rãi */}
-                <div className="bg-gradient-to-br from-amber-500/10 via-zinc-900/90 to-pink-500/10 p-4 rounded-2xl border border-amber-500/20 space-y-2.5">
-                  <div className="flex items-center justify-between text-zinc-200 font-bold">
-                    <span className="flex items-center gap-2 text-sm font-black">
-                      <VolumeIcon className="w-4 h-4 text-amber-400" />
-                      <span>Âm Lượng Tổng (Master)</span>
-                    </span>
-                    <span className="text-amber-400 font-mono font-bold text-sm">
-                      {Math.round(masterVolume * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={2.0}
-                    step={0.05}
-                    value={masterVolume}
-                    onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
-                    className="w-full accent-amber-400 h-2 bg-zinc-800 rounded-lg cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[11px] text-zinc-400 font-mono pt-1">
-                    <button onClick={() => setMasterVolume(0)} className="hover:text-zinc-200">0%</button>
-                    <button onClick={() => setMasterVolume(1.0)} className="hover:text-amber-400 font-bold text-amber-300">100% (Chuẩn)</button>
-                    <button onClick={() => setMasterVolume(2.0)} className="hover:text-zinc-200">200% (Boost)</button>
-                  </div>
-                </div>
-
-                {/* Khối Quản Lý Nhạc BGM To Rõ Như Ban Đầu */}
-                <div className="bg-gradient-to-br from-pink-500/10 via-zinc-900/90 to-purple-500/10 p-4 rounded-2xl border border-pink-500/25 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-sm text-zinc-200 flex items-center gap-2">
-                      <MusicIcon className="w-4 h-4 text-pink-400" />
-                      <span>Âm Nhạc (BGM)</span>
-                    </span>
-                    {audioClips.length > 0 && (
-                      <span className="text-[10px] text-pink-300 font-mono font-bold bg-pink-500/20 px-2 py-0.5 rounded-full border border-pink-500/30">
-                        {audioClips.length} ĐOẠN
-                      </span>
-                    )}
-                  </div>
-
-                  {activeAudioClip && (
-                    <div className="space-y-2 bg-zinc-950/70 p-3 rounded-xl border border-pink-500/20">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-pink-200 truncate">{activeAudioClip.name}</span>
-                        <span className="text-xs font-mono font-bold text-pink-400">{Math.round((activeAudioClip.volume ?? 1.0) * 100)}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={2.0}
-                        step={0.05}
-                        value={activeAudioClip.volume ?? 1.0}
-                        onChange={(e) => {
-                          const v = parseFloat(e.target.value);
-                          setAudioClips((prev) =>
-                            prev.map((a) => (a.id === activeAudioClip.id ? { ...a, volume: v } : a))
-                          );
-                          updateRuntimeAudioVolumes();
-                        }}
-                        className="w-full accent-pink-400 h-2 bg-zinc-800 rounded-lg cursor-pointer"
-                      />
+              <div className="space-y-3 text-xs overflow-y-auto max-h-[48vh] lg:max-h-none neko-scroll pr-1">
+                {/* Tab: Âm nhạc & Master Audio */}
+                {(activeInspectorTab === 'audio' || window.innerWidth >= 1024) && (
+                  <div className="bg-zinc-900/60 p-3 rounded-xl border border-white/[0.06] space-y-2">
+                    <div className="flex items-center justify-between text-xs font-bold text-zinc-200">
+                      <span>Âm Lượng Tổng:</span>
+                      <span className="text-amber-400 font-mono">{Math.round(masterVolume * 100)}%</span>
                     </div>
-                  )}
+                    <input
+                      type="range"
+                      min={0}
+                      max={2.0}
+                      step={0.05}
+                      value={masterVolume}
+                      onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
+                      className="w-full accent-amber-400 h-1.5 bg-zinc-800 rounded cursor-pointer"
+                    />
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={handleSplitAudioClip}
-                      className="py-2.5 px-3 rounded-xl bg-zinc-800/80 hover:bg-zinc-750 text-zinc-200 font-bold text-xs flex items-center justify-center gap-1.5 border border-white/[0.06] transition"
-                    >
-                      <ScissorsIcon className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Tách Nhạc</span>
-                    </button>
-                    <button
-                      onClick={() => setShowAddMusicModal(true)}
-                      className="py-2.5 px-3 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-200 font-bold text-xs flex items-center justify-center gap-1.5 border border-pink-500/30 transition"
-                    >
-                      <span>+ Thêm Nhạc</span>
-                    </button>
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        onClick={handleSplitAudioClip}
+                        className="py-1.5 px-2.5 rounded-lg bg-zinc-800 text-zinc-300 font-bold text-[11px] flex items-center gap-1"
+                      >
+                        <ScissorsIcon className="w-3 h-3 text-amber-400" />
+                        <span>Tách Nhạc</span>
+                      </button>
+                      <button
+                        onClick={() => setShowAddMusicModal(true)}
+                        className="py-1.5 px-2.5 rounded-lg bg-pink-500/20 text-pink-300 font-bold text-[11px] border border-pink-500/30"
+                      >
+                        + Thêm Nhạc
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                {/* TAB 1: CLIP VIDEO (To rõ, có âm lượng & tốc độ) */}
+                {/* Tab: Clip Video */}
                 {activeInspectorTab === 'clip' && activeClip && (
-                  <div className="space-y-4 bg-zinc-900/50 p-4 rounded-2xl border border-white/[0.06]">
-                    <div className="flex items-center justify-between font-black text-sm text-zinc-200 border-b border-white/[0.06] pb-2">
+                  <div className="space-y-3 bg-zinc-900/60 p-3 rounded-xl border border-white/[0.06]">
+                    <div className="flex items-center justify-between font-bold text-xs text-zinc-200">
                       <span className="truncate">{activeClip.name}</span>
-                      <span className="text-xs text-pink-400 font-mono">
-                        {(activeClip.duration / (activeClip.speed || 1.0)).toFixed(1)}s
-                      </span>
+                      <span className="text-pink-400 font-mono">{(activeClip.duration / (activeClip.speed || 1.0)).toFixed(1)}s</span>
                     </div>
 
-                    {/* Âm lượng Video Clip */}
-                    <div className="space-y-2 bg-zinc-950/60 p-3 rounded-xl border border-white/[0.06]">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-zinc-300 font-bold flex items-center gap-1.5">
-                          <VolumeIcon className="w-4 h-4 text-amber-400" />
-                          <span>Âm lượng video gốc:</span>
-                        </span>
-                        <span className="font-mono text-amber-400 font-bold text-xs">
-                          {Math.round((activeClip.volume ?? 1.0) * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={2.0}
-                        step={0.05}
-                        value={activeClip.volume ?? 1.0}
-                        onChange={(e) => {
-                          const v = parseFloat(e.target.value);
-                          setVideoClips((prev) =>
-                            prev.map((c) => (c.id === activeClip.id ? { ...c, volume: v } : c))
-                          );
-                          updateRuntimeAudioVolumes();
-                        }}
-                        className="w-full accent-amber-400 h-2 bg-zinc-800 rounded-lg cursor-pointer"
-                      />
-                      <div className="flex justify-between text-[10px] text-zinc-500 font-mono pt-0.5">
-                        <button onClick={() => {
-                          setVideoClips((prev) => prev.map((c) => (c.id === activeClip.id ? { ...c, volume: 0 } : c)));
-                          updateRuntimeAudioVolumes();
-                        }} className="hover:text-zinc-300">0%</button>
-                        <button onClick={() => {
-                          setVideoClips((prev) => prev.map((c) => (c.id === activeClip.id ? { ...c, volume: 1.0 } : c)));
-                          updateRuntimeAudioVolumes();
-                        }} className="text-amber-400 font-bold">100%</button>
-                        <button onClick={() => {
-                          setVideoClips((prev) => prev.map((c) => (c.id === activeClip.id ? { ...c, volume: 2.0 } : c)));
-                          updateRuntimeAudioVolumes();
-                        }} className="hover:text-zinc-300">200%</button>
-                      </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button onClick={handleSplitClip} className="p-2 rounded-lg bg-zinc-800 text-zinc-200 flex flex-col items-center gap-1 font-bold text-[10px]">
+                        <ScissorsIcon className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Tách</span>
+                      </button>
+                      <button onClick={handleDuplicateClip} className="p-2 rounded-lg bg-zinc-800 text-zinc-200 flex flex-col items-center gap-1 font-bold text-[10px]">
+                        <CopyIcon className="w-3.5 h-3.5 text-pink-400" />
+                        <span>Nhân Bản</span>
+                      </button>
+                      <button onClick={handleDeleteClip} disabled={videoClips.length <= 1} className="p-2 rounded-lg bg-zinc-800 text-zinc-200 flex flex-col items-center gap-1 font-bold text-[10px] disabled:opacity-30">
+                        <TrashIcon className="w-3.5 h-3.5 text-rose-400" />
+                        <span>Xóa</span>
+                      </button>
                     </div>
 
-                    {/* Tốc độ phát Video */}
-                    <div className="space-y-2 bg-zinc-950/60 p-3 rounded-xl border border-white/[0.06]">
-                      <div className="flex items-center justify-between text-xs text-zinc-300 font-bold">
-                        <span>Tốc độ phát:</span>
-                        <span className="text-pink-400 font-mono font-bold">{activeClip.speed || 1.0}x</span>
-                      </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] text-zinc-400 font-bold">Tốc độ phát:</label>
                       <div className="grid grid-cols-6 gap-1">
                         {SPEED_OPTIONS.map((spd) => (
                           <button
                             key={spd}
                             onClick={() => {
                               pushToHistory();
-                              setVideoClips((prev) =>
-                                prev.map((c) => (c.id === activeClip.id ? { ...c, speed: spd } : c))
-                              );
+                              setVideoClips((prev) => prev.map((c) => (c.id === activeClip.id ? { ...c, speed: spd } : c)));
                             }}
-                            className={`py-1.5 rounded-lg text-xs font-mono font-bold transition ${
-                              (activeClip.speed || 1.0) === spd
-                                ? 'bg-pink-500 text-white shadow'
-                                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
+                            className={`py-1 rounded text-[10px] font-mono font-bold ${
+                              (activeClip.speed || 1.0) === spd ? 'bg-pink-500 text-white' : 'bg-zinc-800 text-zinc-300'
                             }`}
                           >
                             {spd}x
@@ -1832,50 +1631,19 @@
                       </div>
                     </div>
 
-                    {/* Phím Thao tác Tách, Nhân bản, Xóa To Rõ Ràng */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={handleSplitClip}
-                        className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 flex flex-col items-center gap-1.5 transition font-bold"
-                      >
-                        <ScissorsIcon className="w-4 h-4 text-amber-400" />
-                        <span className="text-[11px]">Tách Đoạn</span>
-                      </button>
-                      <button
-                        onClick={handleDuplicateClip}
-                        className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 flex flex-col items-center gap-1.5 transition font-bold"
-                      >
-                        <CopyIcon className="w-4 h-4 text-pink-400" />
-                        <span className="text-[11px]">Nhân Bản</span>
-                      </button>
-                      <button
-                        onClick={handleDeleteClip}
-                        disabled={videoClips.length <= 1}
-                        className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-rose-950/60 text-zinc-200 hover:text-rose-300 flex flex-col items-center gap-1.5 transition font-bold disabled:opacity-40"
-                      >
-                        <TrashIcon className="w-4 h-4 text-rose-400" />
-                        <span className="text-[11px]">Xóa Đoạn</span>
-                      </button>
-                    </div>
-
-                    {/* Hiệu ứng vào (Anim In) */}
-                    <div className="space-y-2 pt-2 border-t border-white/[0.06]">
-                      <label className="text-xs font-bold text-zinc-300">Hiệu ứng Vào (Anim In):</label>
-                      <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto neko-scroll pr-1">
+                    <div className="space-y-1">
+                      <label className="text-[11px] text-zinc-400 font-bold">Hiệu ứng vào (Anim In):</label>
+                      <div className="grid grid-cols-2 gap-1.5 max-h-32 overflow-y-auto neko-scroll">
                         {ANIM_IN_EFFECTS.map((eff) => (
                           <button
                             key={eff.id}
                             onClick={() => {
                               pushToHistory();
-                              setVideoClips((prev) =>
-                                prev.map((c) => (c.id === activeClip.id ? { ...c, animIn: eff.id } : c))
-                              );
+                              setVideoClips((prev) => prev.map((c) => (c.id === activeClip.id ? { ...c, animIn: eff.id } : c)));
                               seekToAndStop(getCurrentClipInfo(currentTimeRef.current)?.clipStartTime || 0);
                             }}
-                            className={`p-2.5 rounded-xl border text-left transition text-xs font-bold flex items-center gap-2 ${
-                              activeClip.animIn === eff.id
-                                ? 'bg-pink-500/20 border-pink-400 text-pink-300'
-                                : 'bg-zinc-800/60 border-white/[0.04] text-zinc-400 hover:text-white'
+                            className={`p-1.5 rounded-lg border text-left text-[11px] font-bold flex items-center gap-1.5 ${
+                              activeClip.animIn === eff.id ? 'bg-pink-500/20 border-pink-400 text-pink-300' : 'bg-zinc-800/60 border-white/[0.04] text-zinc-400'
                             }`}
                           >
                             <span>{eff.icon}</span>
@@ -1887,170 +1655,89 @@
                   </div>
                 )}
 
-                {/* TAB 2: BỘ LỌC MÀU (FILTERS) */}
+                {/* Tab: Bộ lọc màu */}
                 {activeInspectorTab === 'filter' && activeClip && (
-                  <div className="space-y-2.5 bg-zinc-900/50 p-4 rounded-2xl border border-white/[0.06]">
-                    <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto neko-scroll pr-1">
-                      {FILTERS.map((filt) => (
-                        <button
-                          key={filt.id}
-                          onClick={() => {
-                            pushToHistory();
-                            setVideoClips((prev) =>
-                              prev.map((c) => (c.id === activeClip.id ? { ...c, colorFilter: filt.id } : c))
-                            );
-                            renderCanvasFrame(currentTimeRef.current);
-                          }}
-                          className={`p-3 rounded-xl border text-left transition flex items-center justify-between text-xs ${
-                            activeClip.colorFilter === filt.id
-                              ? 'bg-gradient-to-r from-pink-500/20 to-amber-500/20 border-pink-400 text-pink-300 font-bold'
-                              : 'bg-zinc-800/60 border-white/[0.04] text-zinc-300 hover:text-white'
-                          }`}
-                        >
-                          <span className="font-black text-sm">{filt.name}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-850 text-zinc-400 font-mono">
-                            {filt.tag}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                  <div className="space-y-1.5 bg-zinc-900/60 p-3 rounded-xl border border-white/[0.06] max-h-56 overflow-y-auto neko-scroll">
+                    {FILTERS.map((filt) => (
+                      <button
+                        key={filt.id}
+                        onClick={() => {
+                          pushToHistory();
+                          setVideoClips((prev) => prev.map((c) => (c.id === activeClip.id ? { ...c, colorFilter: filt.id } : c)));
+                          renderCanvasFrame(currentTimeRef.current);
+                        }}
+                        className={`p-2.5 rounded-lg border text-left w-full flex items-center justify-between text-xs ${
+                          activeClip.colorFilter === filt.id ? 'bg-pink-500/20 border-pink-400 text-pink-300 font-bold' : 'bg-zinc-800/60 border-white/[0.04] text-zinc-300'
+                        }`}
+                      >
+                        <span>{filt.name}</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-850 text-zinc-400">{filt.tag}</span>
+                      </button>
+                    ))}
                   </div>
                 )}
 
-                {/* TAB 3: CHỮ & PHÔNG CHỮ & KÉO THẢ TỰ DO */}
+                {/* Tab: Chữ */}
                 {activeInspectorTab === 'text' && (
-                  <div className="space-y-4 bg-zinc-900/50 p-4 rounded-2xl border border-white/[0.06]">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-zinc-300">Nội dung chữ:</label>
+                  <div className="space-y-3 bg-zinc-900/60 p-3 rounded-xl border border-white/[0.06]">
+                    <div className="space-y-1">
                       <input
                         type="text"
                         value={newSubText}
                         onChange={(e) => setNewSubText(e.target.value)}
-                        className="w-full bg-zinc-950 border border-white/[0.08] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-pink-500"
-                        placeholder="Nhập chữ cần gắn..."
+                        className="w-full bg-zinc-950 border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-white"
+                        placeholder="Nội dung chữ..."
                       />
+                      <button
+                        onClick={() => {
+                          const newSub = {
+                            id: `sub_${Date.now()}`,
+                            text: newSubText || 'Highlight WW',
+                            start: currentTimeRef.current,
+                            end: Math.min(totalDuration, currentTimeRef.current + 2.5),
+                            fontFamily: "'Orbitron', sans-serif",
+                            fontSize: 34,
+                            color: '#fef08a',
+                            strokeColor: '#000000',
+                            strokeWidth: 3,
+                            x: 50,
+                            y: 80,
+                            showBg: true,
+                            bgOpacity: 0.75
+                          };
+                          setSubtitles((prev) => [...prev, newSub]);
+                          setActiveSubId(newSub.id);
+                          renderCanvasFrame(currentTimeRef.current);
+                          showToast('Đã thêm chữ!');
+                        }}
+                        className="w-full py-2 bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 font-black rounded-lg text-xs"
+                      >
+                        + Thêm Chữ Tại {currentTime.toFixed(1)}s
+                      </button>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        const newSub = {
-                          id: `sub_${Date.now()}`,
-                          text: newSubText || 'Highlight WW',
-                          start: currentTimeRef.current,
-                          end: Math.min(totalDuration, currentTimeRef.current + 2.5),
-                          fontFamily: "'Orbitron', sans-serif",
-                          fontSize: 36,
-                          color: '#fef08a',
-                          strokeColor: '#000000',
-                          strokeWidth: 3,
-                          x: 50,
-                          y: 80,
-                          showBg: true,
-                          bgOpacity: 0.75
-                        };
-                        setSubtitles((prev) => [...prev, newSub]);
-                        setActiveSubId(newSub.id);
-                        renderCanvasFrame(currentTimeRef.current);
-                        showToast('Đã thêm chữ! Kéo thả trên Preview để đổi chỗ');
-                      }}
-                      className="w-full py-3 bg-gradient-to-r from-pink-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-zinc-950 font-black rounded-xl text-xs transition shadow-lg active:scale-95"
-                    >
-                      + Thêm Tại Giây Hiện Tại ({currentTime.toFixed(1)}s)
-                    </button>
-
-                    {/* Bộ chỉnh Font chữ & Style cho Chữ đang chọn */}
                     {activeSub && (
-                      <div className="bg-zinc-950/70 p-3 rounded-xl border border-amber-500/20 space-y-2.5">
-                        <div className="text-xs font-black text-amber-300 truncate">Đang chọn: "{activeSub.text}"</div>
-                        
-                        <div className="space-y-1">
-                          <label className="text-[11px] text-zinc-400 font-bold">Phông chữ Anime / Gaming:</label>
-                          <select
-                            value={activeSub.fontFamily || 'sans-serif'}
-                            onChange={(e) => {
-                              const f = e.target.value;
-                              setSubtitles((prev) => prev.map((s) => (s.id === activeSub.id ? { ...s, fontFamily: f } : s)));
-                              renderCanvasFrame(currentTimeRef.current);
-                            }}
-                            className="w-full bg-zinc-900 border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none"
-                          >
-                            {FONTS.map((f) => (
-                              <option key={f.id} value={f.family}>{f.name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <div>
-                            <label className="text-[11px] text-zinc-400 font-bold">Màu chữ:</label>
-                            <input
-                              type="color"
-                              value={activeSub.color || '#fef08a'}
-                              onChange={(e) => {
-                                const c = e.target.value;
-                                setSubtitles((prev) => prev.map((s) => (s.id === activeSub.id ? { ...s, color: c } : s)));
-                                renderCanvasFrame(currentTimeRef.current);
-                              }}
-                              className="w-full h-8 rounded border border-white/[0.08] bg-transparent cursor-pointer"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="text-[11px] text-zinc-400 font-bold">Độ mờ nền Box:</label>
-                            <input
-                              type="range"
-                              min={0.1}
-                              max={1.0}
-                              step={0.05}
-                              value={activeSub.bgOpacity ?? 0.75}
-                              onChange={(e) => {
-                                const op = parseFloat(e.target.value);
-                                setSubtitles((prev) => prev.map((s) => (s.id === activeSub.id ? { ...s, bgOpacity: op } : s)));
-                                renderCanvasFrame(currentTimeRef.current);
-                              }}
-                              className="w-full accent-pink-500 h-1.5 bg-zinc-800 rounded cursor-pointer mt-2"
-                            />
-                          </div>
-                        </div>
+                      <div className="space-y-2 bg-zinc-950/70 p-2.5 rounded-lg border border-amber-500/20">
+                        <select
+                          value={activeSub.fontFamily || 'sans-serif'}
+                          onChange={(e) => {
+                            const f = e.target.value;
+                            setSubtitles((prev) => prev.map((s) => (s.id === activeSub.id ? { ...s, fontFamily: f } : s)));
+                            renderCanvasFrame(currentTimeRef.current);
+                          }}
+                          className="w-full bg-zinc-900 border border-white/[0.08] rounded p-1 text-xs text-white"
+                        >
+                          {FONTS.map((f) => (<option key={f.id} value={f.family}>{f.name}</option>))}
+                        </select>
                       </div>
                     )}
-
-                    <div className="space-y-1.5 max-h-40 overflow-y-auto neko-scroll pr-1">
-                      {subtitles.map((sub) => (
-                        <div
-                          key={sub.id}
-                          onClick={() => {
-                            setActiveSubId(sub.id);
-                            seekToAndStop(sub.start);
-                          }}
-                          className={`p-2.5 rounded-xl flex items-center justify-between text-xs cursor-pointer transition border ${
-                            activeSubId === sub.id
-                              ? 'bg-pink-500/20 border-pink-400 text-pink-200 font-bold'
-                              : 'bg-zinc-800/60 border-white/[0.04] text-zinc-300 hover:bg-zinc-700/60'
-                          }`}
-                        >
-                          <span className="truncate flex-1">{sub.text}</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSubtitles(subtitles.filter((s) => s.id !== sub.id));
-                              if (activeSubId === sub.id) setActiveSubId(null);
-                            }}
-                            className="text-rose-400 hover:text-rose-300 p-1 font-bold text-sm"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 )}
 
-                {/* TAB 4: TỈ LỆ KHUNG HÌNH (RATIO) */}
+                {/* Tab: Tỉ Lệ */}
                 {activeInspectorTab === 'ratio' && (
-                  <div className="space-y-4 bg-zinc-900/50 p-4 rounded-2xl border border-white/[0.06]">
-                    <label className="text-xs font-bold text-zinc-300">Tỉ lệ khung hình:</label>
-                    <div className="grid grid-cols-2 gap-2.5">
+                  <div className="space-y-3 bg-zinc-900/60 p-3 rounded-xl border border-white/[0.06]">
+                    <div className="grid grid-cols-2 gap-2">
                       {ASPECT_RATIOS.map((r) => (
                         <button
                           key={r.id}
@@ -2058,10 +1745,8 @@
                             setSelectedRatio(r);
                             renderCanvasFrame(currentTimeRef.current);
                           }}
-                          className={`p-3 rounded-xl border text-center transition font-bold text-xs ${
-                            selectedRatio.id === r.id
-                              ? 'bg-pink-500/20 border-pink-400 text-pink-300'
-                              : 'bg-zinc-800/60 border-white/[0.04] text-zinc-400 hover:text-white'
+                          className={`p-2 rounded-lg border text-center text-xs font-bold ${
+                            selectedRatio.id === r.id ? 'bg-pink-500/20 border-pink-400 text-pink-300' : 'bg-zinc-800/60 border-white/[0.04] text-zinc-400'
                           }`}
                         >
                           {r.label}
@@ -2069,128 +1754,45 @@
                       ))}
                     </div>
 
-                    <div className="pt-2 border-t border-white/[0.06] space-y-2">
-                      <label className="text-xs font-bold text-zinc-300">Chế độ lấp khung:</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          { id: 'fit', label: 'Vừa Khung' },
-                          { id: 'cover', label: 'Tràn Viền' },
-                          { id: 'blur', label: 'Nền Mờ' }
-                        ].map((m) => (
-                          <button
-                            key={m.id}
-                            onClick={() => {
-                              setFitMode(m.id);
-                              renderCanvasFrame(currentTimeRef.current);
-                            }}
-                            className={`py-2 rounded-xl border text-center text-xs font-bold transition ${
-                              fitMode === m.id
-                                ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                                : 'bg-zinc-800/50 border-white/[0.04] text-zinc-400'
-                            }`}
-                          >
-                            {m.label}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="grid grid-cols-3 gap-1.5 pt-1">
+                      {[{ id: 'fit', label: 'Vừa Khung' }, { id: 'cover', label: 'Tràn Viền' }, { id: 'blur', label: 'Nền Mờ' }].map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => {
+                            setFitMode(m.id);
+                            renderCanvasFrame(currentTimeRef.current);
+                          }}
+                          className={`py-1.5 rounded-lg border text-[10px] font-bold ${
+                            fitMode === m.id ? 'bg-amber-500/20 border-amber-400 text-amber-300' : 'bg-zinc-800/50 border-white/[0.04] text-zinc-400'
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
               </div>
             </aside>
-
-            {/* Màn Hình Center Canvas Preview & Cụm Phím Điều Khiển To Rõ */}
-            <main
-              className="flex-1 flex flex-col items-center justify-between p-4 md:p-6 bg-[#08080c] relative order-1 lg:order-2 overflow-hidden"
-              onPointerMove={handleCanvasPointerMove}
-              onPointerUp={handleCanvasPointerUp}
-            >
-              <div className="flex-1 w-full flex items-center justify-center min-h-0 relative">
-                <canvas
-                  ref={canvasRef}
-                  width={selectedRatio.w}
-                  height={selectedRatio.h}
-                  onPointerDown={handleCanvasPointerDown}
-                  className="max-h-full max-w-full rounded-2xl shadow-[0_0_35px_rgba(0,0,0,0.85)] border border-white/[0.08] object-contain bg-black cursor-crosshair touch-none"
-                  style={{ aspectRatio: selectedRatio.ratioCss }}
-                />
-              </div>
-
-              {/* Player Controls Bar Phong Cách Neko Rộng Rãi Ban Đầu */}
-              <div className="w-full max-w-xl mt-4 bg-zinc-950/85 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/[0.08] flex items-center justify-between gap-4 shadow-2xl shrink-0">
-                <div className="flex items-center gap-2 font-mono text-sm font-black text-zinc-200">
-                  <span className="text-pink-400">{currentTime.toFixed(1)}s</span>
-                  <span className="text-zinc-600">/</span>
-                  <span>{totalDuration.toFixed(1)}s</span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => seekToAndStop(0)}
-                    className="w-9 h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center transition border border-white/[0.06]"
-                    title="Về đầu video"
-                  >
-                    ⏮
-                  </button>
-
-                  <button
-                    onClick={() => seekToAndStop(currentTimeRef.current - 0.1)}
-                    className="px-2.5 h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center transition border border-white/[0.06] text-xs font-mono font-bold"
-                    title="Lùi 1 Frame (-0.1s)"
-                  >
-                    -0.1s
-                  </button>
-
-                  <button
-                    onClick={togglePlay}
-                    className="w-11 h-11 rounded-2xl bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 flex items-center justify-center shadow-lg transition active:scale-95"
-                    title="Phát / Dừng (Space)"
-                  >
-                    {isPlaying ? <PauseIcon className="w-5 h-5 fill-current" /> : <PlayIcon className="w-5 h-5 fill-current ml-0.5" />}
-                  </button>
-
-                  <button
-                    onClick={() => seekToAndStop(currentTimeRef.current + 0.1)}
-                    className="px-2.5 h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center transition border border-white/[0.06] text-xs font-mono font-bold"
-                    title="Tiến 1 Frame (+0.1s)"
-                  >
-                    +0.1s
-                  </button>
-
-                  <button
-                    onClick={() => setIsMuted(!isMuted)}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition border ${
-                      isMuted ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-white/[0.06]'
-                    }`}
-                    title={isMuted ? "Bật tiếng" : "Tắt tiếng"}
-                  >
-                    {isMuted ? "🔇" : "🔊"}
-                  </button>
-                </div>
-              </div>
-            </main>
           </div>
 
-          {/* Dải Timeline To Rõ, Liền Mạch Nguyên Bản Nhưng Giữ Đủ Lớp Nhạc & Chữ */}
-          <footer className="h-56 border-t border-white/[0.08] bg-[#09090d] flex flex-col shrink-0 p-3 space-y-2 select-none relative z-10">
-            <div className="flex items-center justify-between text-xs text-zinc-400 px-1">
-              <span className="font-bold flex items-center gap-1.5 text-zinc-300">
-                <CatPawSvg className="w-3.5 h-3.5 text-pink-400" />
-                <span>Dòng thời gian (Nhấp chuột dừng kim chính xác từng frame)</span>
+          {/* 3. DẢI TIMELINE DƯỚI CÙNG (CHIỀU CAO THU GỌN VỪA TẦM TAY TRÊN MOBILE) */}
+          <footer className="h-44 sm:h-52 border-t border-white/[0.08] bg-[#09090d] flex flex-col shrink-0 p-2 sm:p-3 space-y-1.5 select-none relative z-10">
+            <div className="flex items-center justify-between text-[11px] text-zinc-400 px-1">
+              <span className="font-bold flex items-center gap-1 text-zinc-300">
+                <CatPawSvg className="w-3 h-3 text-pink-400" />
+                <span>Timeline</span>
               </span>
-
-              <span className="text-xs font-mono text-pink-400 font-bold">
-                {currentTime.toFixed(2)}s / {totalDuration.toFixed(2)}s
-              </span>
+              <span className="font-mono text-pink-400 font-bold text-xs">{currentTime.toFixed(2)}s</span>
             </div>
 
-            {/* DẢI TIMELINE CHÍNH TO RÕ (Cao 56px, hiển thị tên clip, âm lượng, sao điểm) */}
+            {/* TRACK VIDEO CHÍNH */}
             <div
               ref={trackAreaRef}
               onPointerDown={handleTimelinePointerDown}
               onPointerMove={handleTimelinePointerMove}
               onPointerUp={handleTimelinePointerUp}
-              className="relative h-14 bg-zinc-950 rounded-2xl border border-white/[0.08] p-1 flex items-center gap-1.5 cursor-pointer overflow-hidden shadow-inner touch-none"
+              className="relative h-12 bg-zinc-950 rounded-xl border border-white/[0.08] p-1 flex items-center gap-1 cursor-pointer overflow-hidden shadow-inner touch-none"
             >
               {videoClips.map((clip, index) => {
                 const effDur = clip.duration / (clip.speed || 1.0);
@@ -2201,83 +1803,44 @@
                   <div
                     key={clip.id}
                     data-interactive="true"
-                    draggable
-                    onDragStart={(e) => {
-                      setDraggedClipIndex(index);
-                      e.dataTransfer.effectAllowed = 'move';
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      if (dragOverIndex !== index) setDragOverIndex(index);
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (draggedClipIndex === null || draggedClipIndex === index) return;
-                      pushToHistory();
-                      const updated = [...videoClips];
-                      const [moved] = updated.splice(draggedClipIndex, 1);
-                      updated.splice(index, 0, moved);
-                      setVideoClips(updated);
-                      setActiveClipId(moved.id);
-                      setDraggedClipIndex(null);
-                      setDragOverIndex(null);
-                      seekToAndStop(0);
-                      showToast(`Đã dời "${moved.name}"`);
-                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleClipBarClick(clip);
                     }}
-                    style={{ width: `${Math.max(8, widthPercent)}%` }}
-                    className={`h-full rounded-xl p-2 flex flex-col justify-between transition-all select-none relative overflow-hidden text-left border ${
+                    style={{ width: `${Math.max(10, widthPercent)}%` }}
+                    className={`h-full rounded-lg px-2 py-1 flex flex-col justify-between transition-all select-none text-left border ${
                       isCurrent
-                        ? 'bg-gradient-to-r from-pink-500/30 to-amber-500/20 border-pink-400 shadow-[0_0_12px_rgba(244,63,94,0.3)] text-white'
-                        : 'bg-zinc-900/80 border-white/[0.06] hover:bg-zinc-800 text-zinc-300'
-                    } ${clip.isScoreClip ? 'ring-1 ring-amber-400/60' : ''}`}
+                        ? 'bg-gradient-to-r from-pink-500/30 to-amber-500/20 border-pink-400 text-white'
+                        : 'bg-zinc-900/80 border-white/[0.06] text-zinc-300'
+                    }`}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span className="text-[11px] font-extrabold truncate text-zinc-100 flex items-center gap-1">
-                        {clip.isScoreClip && <span className="text-amber-400 text-xs">⭐</span>}
-                        {clip.name}
-                      </span>
-                      <span className="text-[10px] font-mono text-zinc-400 shrink-0">{effDur.toFixed(1)}s</span>
+                      <span className="text-[10px] font-bold truncate">{clip.name}</span>
+                      <span className="text-[9px] font-mono text-zinc-400">{effDur.toFixed(1)}s</span>
                     </div>
-
-                    <div className="flex items-center justify-between w-full text-[9px] font-mono">
-                      {clip.isScoreClip ? (
-                        <span className="text-amber-300 font-bold bg-amber-500/20 px-1 py-0.5 rounded">
-                          Chạm đổi 2s điểm
-                        </span>
-                      ) : (
-                        <span>{clip.speed ? `${clip.speed}x` : '1x'}</span>
-                      )}
-                      <span className="text-amber-400 font-bold">🔊 {Math.round((clip.volume ?? 1.0) * 100)}%</span>
+                    <div className="text-[8px] font-mono text-amber-400">
+                      {clip.isScoreClip ? '⭐ 2s Điểm' : `${clip.speed || 1}x`}
                     </div>
                   </div>
                 );
               })}
 
-              {/* Kim phát mèo Neko đồng bộ chính xác */}
+              {/* Kim phát */}
               {totalDuration > 0 && (
                 <div
                   ref={playheadRef}
-                  style={{
-                    left: `${(currentTime / totalDuration) * 100}%`,
-                    transform: 'translateX(-50%)'
-                  }}
-                  className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-pink-400 to-amber-300 pointer-events-none shadow-[0_0_10px_rgba(244,63,94,0.9)] z-30 transition-none"
+                  style={{ left: `${(currentTime / totalDuration) * 100}%`, transform: 'translateX(-50%)' }}
+                  className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-pink-400 to-amber-300 pointer-events-none z-30"
                 >
-                  <div className="absolute -top-1 -left-1.5 w-3.5 h-3.5 rounded-full bg-pink-500 border border-white flex items-center justify-center text-[7px] shadow-lg">
-                    🐾
-                  </div>
+                  <div className="absolute -top-1 -left-1 w-2.5 h-2.5 rounded-full bg-pink-500 border border-white shadow"></div>
                 </div>
               )}
             </div>
 
-            {/* THANH TEXT LAYER RIÊNG BIỆT (Kéo dài/thu ngắn & nhảy kim video) */}
-            <div className="relative h-7 bg-zinc-950/80 rounded-xl border border-dashed border-amber-500/30 overflow-hidden flex items-center px-1">
+            {/* TRACK CHỮ (SUBTITLES) */}
+            <div className="relative h-6 bg-zinc-950/80 rounded-lg border border-dashed border-amber-500/30 overflow-hidden flex items-center px-1">
               {subtitles.length === 0 ? (
-                <span className="text-[10px] text-zinc-600 pl-2">Chưa có chữ trên timeline. Vào tab "Chữ" để thêm.</span>
+                <span className="text-[9px] text-zinc-600 pl-1">Chưa có chữ</span>
               ) : (
                 subtitles.map((sub) => {
                   const leftPercent = totalDuration > 0 ? (sub.start / totalDuration) * 100 : 0;
@@ -2293,160 +1856,54 @@
                         setActiveSubId(sub.id);
                         seekToAndStop(sub.start);
                       }}
-                      style={{
-                        left: `${Math.max(0, leftPercent)}%`,
-                        width: `${Math.max(4, widthPercent)}%`
-                      }}
-                      className={`absolute top-0.5 bottom-0.5 rounded-lg flex items-center justify-between px-1.5 border text-[10px] font-bold cursor-pointer transition select-none z-10 ${
-                        isCurrent
-                          ? 'bg-amber-400 text-zinc-950 border-white shadow-md'
-                          : 'bg-amber-500/30 text-amber-300 border-amber-500/50 hover:bg-amber-500/50'
+                      style={{ left: `${Math.max(0, leftPercent)}%`, width: `${Math.max(6, widthPercent)}%` }}
+                      className={`absolute top-0.5 bottom-0.5 rounded px-1 flex items-center justify-between text-[9px] font-bold border ${
+                        isCurrent ? 'bg-amber-400 text-zinc-950 border-white' : 'bg-amber-500/30 text-amber-300 border-amber-500/50'
                       }`}
-                      title="Bấm để đưa kim phát đến chữ này"
                     >
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const newStart = Math.max(0, sub.start - 0.5);
-                          setSubtitles((prev) => prev.map((s) => (s.id === sub.id ? { ...s, start: newStart } : s)));
-                          seekToAndStop(newStart);
-                        }}
-                        className="hover:scale-125 px-0.5 cursor-ew-resize font-mono opacity-70 hover:opacity-100"
-                        title="Kéo dài về trước"
-                      >
-                        ◀
-                      </span>
-
-                      <span className="truncate mx-1">{sub.text}</span>
-
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const newEnd = Math.min(totalDuration, sub.end + 0.5);
-                          setSubtitles((prev) => prev.map((s) => (s.id === sub.id ? { ...s, end: newEnd } : s)));
-                          seekToAndStop(sub.start);
-                        }}
-                        className="hover:scale-125 px-0.5 cursor-ew-resize font-mono opacity-70 hover:opacity-100"
-                        title="Kéo dài về sau"
-                      >
-                        ▶
-                      </span>
+                      <span className="truncate">{sub.text}</span>
                     </div>
                   );
                 })
               )}
             </div>
 
-            {/* THANH BGM AUDIO TRACK ĐA ĐOẠN (Cắt, Thả, Kéo, Chỉnh Âm Lượng) */}
-            <div className="h-9 bg-zinc-950/80 rounded-xl border border-pink-500/20 px-2 flex items-center justify-between gap-1 overflow-hidden">
+            {/* TRACK BGM AUDIO */}
+            <div className="h-7 bg-zinc-950/80 rounded-lg border border-pink-500/20 px-2 flex items-center justify-between overflow-hidden">
               {audioClips.length === 0 ? (
-                <div
-                  data-interactive="true"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowAddMusicModal(true);
-                  }}
-                  className="flex items-center justify-between w-full text-xs text-zinc-500 hover:text-pink-300 cursor-pointer px-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <MusicIcon className="w-3.5 h-3.5 text-pink-400" />
-                    <span>Chưa có nhạc nền (BGM) • Bấm để thêm file MP3 hoặc link YouTube</span>
-                  </div>
-                  <span className="text-xs font-bold text-pink-400 hover:underline">+ Thêm Nhạc</span>
+                <div onClick={() => setShowAddMusicModal(true)} className="flex items-center justify-between w-full text-[10px] text-zinc-500 cursor-pointer">
+                  <span>🎵 Thêm nhạc nền BGM</span>
+                  <span className="text-pink-400 font-bold">+ Thêm</span>
                 </div>
               ) : (
-                audioClips.map((aud, index) => {
-                  const widthPercent = totalDuration > 0 ? (aud.duration / totalDuration) * 100 : 100;
-                  const isCurAudio = activeAudioClipId === aud.id;
-
-                  return (
-                    <div
-                      key={aud.id}
-                      data-interactive="true"
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('audioIndex', index);
-                      }}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        const fromIdx = parseInt(e.dataTransfer.getData('audioIndex'), 10);
-                        if (!isNaN(fromIdx) && fromIdx !== index) {
-                          pushToHistory();
-                          const updated = [...audioClips];
-                          const [moved] = updated.splice(fromIdx, 1);
-                          updated.splice(index, 0, moved);
-                          setAudioClips(updated);
-                          setActiveAudioClipId(moved.id);
-                          showToast(`Đã dời "${moved.name}"`);
-                        }
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveAudioClipId(aud.id);
-                      }}
-                      style={{ width: `${Math.max(12, widthPercent)}%` }}
-                      className={`h-full rounded-lg px-2.5 flex items-center justify-between border text-xs font-bold transition cursor-pointer select-none shrink-0 ${
-                        isCurAudio
-                          ? 'bg-gradient-to-r from-pink-500/30 to-purple-500/25 border-pink-400 text-pink-200'
-                          : 'bg-[#181424] border-pink-500/20 text-zinc-300 hover:bg-[#221c32]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 truncate">
-                        <MusicIcon className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-                        <span className="truncate">{aud.name}</span>
-                      </div>
-                      <span className="text-[10px] font-mono text-pink-400 shrink-0 ml-1">
-                        🔊 {Math.round((aud.volume ?? 1.0) * 100)}%
-                      </span>
-                    </div>
-                  );
-                })
+                audioClips.map((aud) => (
+                  <div key={aud.id} className="h-full rounded px-2 flex items-center gap-1 bg-pink-500/20 border border-pink-400 text-pink-200 text-[10px] truncate">
+                    <span>🎵</span>
+                    <span className="truncate">{aud.name}</span>
+                  </div>
+                ))
               )}
             </div>
           </footer>
 
-          {/* Modal Popup 15s Cuối Chọn Điểm Số */}
+          {/* MODAL CHỌN ĐIỂM SỐ */}
           {showScorePickerModal && (
-            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-              <div className="bg-[#110f17] border border-white/[0.12] w-full max-w-lg rounded-3xl p-5 space-y-4 shadow-2xl">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                  <h3 className="font-extrabold text-sm text-zinc-100 flex items-center gap-1.5">
-                    <span>🎯 Chọn 2s Điểm Số (15s Cuối Cùng)</span>
-                  </h3>
-                  <button
-                    onClick={() => {
-                      if (pickerVideoRef.current) pickerVideoRef.current.pause();
-                      setIsPickerPlaying(false);
-                      setShowScorePickerModal(false);
-                    }}
-                    className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition"
-                  >
-                    ✕
-                  </button>
+            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="bg-[#110f17] border-t sm:border border-white/[0.12] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-4 space-y-3 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                  <h3 className="font-bold text-xs text-zinc-100">🎯 Chọn 2s Điểm Số Cuối</h3>
+                  <button onClick={() => setShowScorePickerModal(false)} className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400">✕</button>
                 </div>
 
-                <div className="w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/[0.08] relative group">
+                <div className="w-full aspect-video bg-black rounded-xl overflow-hidden relative">
                   <video
                     ref={pickerVideoRef}
                     src={scoreClipObj?.url}
                     preload="auto"
                     muted
                     playsInline
-                    onLoadedMetadata={(e) => {
-                      e.currentTarget.currentTime = previewScoreTime;
-                    }}
-                    onTimeUpdate={(e) => {
-                      if (isPickerPlaying && e.currentTarget.currentTime >= previewScoreTime + 2.0) {
-                        e.currentTarget.currentTime = previewScoreTime;
-                      }
-                    }}
-                    className="w-full h-full object-contain bg-black"
+                    className="w-full h-full object-contain"
                   />
-                  <div className="absolute top-2.5 right-2.5 bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold text-amber-300 border border-amber-500/20 shadow">
-                    Khung hình: {previewScoreTime.toFixed(2)}s
-                  </div>
-
                   <button
                     type="button"
                     onClick={() => {
@@ -2461,73 +1918,37 @@
                         v.play().then(() => setIsPickerPlaying(true)).catch(() => {});
                       }
                     }}
-                    className="absolute bottom-3 right-3 px-3.5 py-1.5 rounded-xl bg-zinc-900/90 hover:bg-zinc-800 text-white text-xs font-bold flex items-center gap-1.5 border border-white/20 backdrop-blur-md transition shadow-lg active:scale-95"
+                    className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-zinc-900/90 text-white text-[10px] font-bold"
                   >
-                    {isPickerPlaying ? '⏸ Tạm dừng' : '▶ Xem thử 2s này'}
+                    {isPickerPlaying ? '⏸ Dừng' : '▶ Xem Thử 2s'}
                   </button>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-zinc-300">
-                    <span>Mốc bắt đầu 2 giây:</span>
-                    <span className="font-bold text-amber-400 font-mono">
-                      {previewScoreTime.toFixed(2)}s ➔ {(previewScoreTime + 2.0).toFixed(2)}s
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={minScoreWindow}
-                    max={maxScoreWindow}
-                    step={0.05}
-                    value={previewScoreTime}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setPreviewScoreTime(val);
-                      const v = pickerVideoRef.current;
-                      if (v) {
-                        if (isPickerPlaying) {
-                          v.pause();
-                          setIsPickerPlaying(false);
-                        }
-                        v.currentTime = val;
+                <input
+                  type="range"
+                  min={minScoreWindow}
+                  max={maxScoreWindow}
+                  step={0.05}
+                  value={previewScoreTime}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setPreviewScoreTime(val);
+                    const v = pickerVideoRef.current;
+                    if (v) {
+                      if (isPickerPlaying) {
+                        v.pause();
+                        setIsPickerPlaying(false);
                       }
-                    }}
-                    className="w-full accent-amber-400 h-2 bg-zinc-800 rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                <div className="grid grid-cols-4 gap-1.5 pt-1">
-                  {[-0.5, -0.1, 0.1, 0.5].map((step) => (
-                    <button
-                      key={step}
-                      type="button"
-                      onClick={() => {
-                        const next = Math.max(minScoreWindow, Math.min(maxScoreWindow, previewScoreTime + step));
-                        setPreviewScoreTime(next);
-                        const v = pickerVideoRef.current;
-                        if (v) {
-                          if (isPickerPlaying) {
-                            v.pause();
-                            setIsPickerPlaying(false);
-                          }
-                          v.currentTime = next;
-                        }
-                      }}
-                      className="py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-mono font-bold transition"
-                    >
-                      {step > 0 ? `+${step}s` : `${step}s`}
-                    </button>
-                  ))}
-                </div>
+                      v.currentTime = val;
+                    }
+                  }}
+                  className="w-full accent-amber-400 h-1.5 bg-zinc-800 rounded"
+                />
 
                 <button
                   type="button"
-                  onClick={() => {
-                    if (pickerVideoRef.current) pickerVideoRef.current.pause();
-                    setIsPickerPlaying(false);
-                    applySelectedScoreTime(previewScoreTime);
-                  }}
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 font-black text-xs shadow-lg transition active:scale-95"
+                  onClick={() => applySelectedScoreTime(previewScoreTime)}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 font-black text-xs"
                 >
                   Xác Nhận Lấy 2 Giây Này
                 </button>
@@ -2535,90 +1956,52 @@
             </div>
           )}
 
-          {/* Modal Thêm Nhạc / Link YouTube */}
+          {/* MODAL THÊM NHẠC */}
           {showAddMusicModal && (
-            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-              <div className="bg-[#110f17] border border-white/[0.12] w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                  <h3 className="font-extrabold text-sm text-zinc-100 flex items-center gap-1.5">
-                    <MusicIcon className="w-4 h-4 text-pink-400" />
-                    <span>Thêm Nhạc Nền (BGM)</span>
+            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
+              <div className="bg-[#110f17] border-t sm:border border-white/[0.12] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-4 space-y-3 shadow-2xl">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                  <h3 className="font-bold text-xs text-zinc-100 flex items-center gap-1.5">
+                    <MusicIcon className="w-3.5 h-3.5 text-pink-400" />
+                    <span>Thêm Âm Nhạc BGM</span>
                   </h3>
-                  <button
-                    onClick={() => setShowAddMusicModal(false)}
-                    className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center"
-                  >
-                    ✕
-                  </button>
+                  <button onClick={() => setShowAddMusicModal(false)} className="w-6 h-6 rounded-full bg-zinc-800 text-zinc-400">✕</button>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-300">1. Dán Link YouTube:</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={ytLinkInput}
-                      onChange={(e) => setYtLinkInput(e.target.value)}
-                      placeholder="https://youtube.com/watch?v=..."
-                      className="flex-1 bg-zinc-950 border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500"
-                    />
-                    <button
-                      onClick={handleAddMusicFromYouTube}
-                      disabled={isProcessingAudio}
-                      className="px-3 py-2 bg-pink-500 hover:bg-pink-400 text-zinc-950 font-bold text-xs rounded-xl transition disabled:opacity-50"
-                    >
-                      Kết Nối
-                    </button>
-                  </div>
-                </div>
-
-                <div className="relative flex items-center justify-center my-2">
-                  <div className="border-t border-zinc-800 w-full" />
-                  <span className="bg-[#110f17] px-2 text-[10px] text-zinc-500 font-bold uppercase">Hoặc</span>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-300">2. Tải File Audio / Video từ máy:</label>
-                  <label className="w-full py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-750 text-zinc-200 border border-white/[0.08] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition">
-                    <span>Chọn tệp MP3, WAV, hoặc MP4</span>
-                    <input
-                      type="file"
-                      accept="audio/*,video/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleAddMusicFromFile(file);
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
+                <label className="w-full py-3 rounded-xl bg-zinc-800 text-zinc-200 text-xs font-bold flex items-center justify-center cursor-pointer">
+                  <span>Chọn tệp MP3, WAV từ máy</span>
+                  <input
+                    type="file"
+                    accept="audio/*,video/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleAddMusicFromFile(file);
+                    }}
+                    className="hidden"
+                  />
+                </label>
               </div>
             </div>
           )}
 
-          {/* Popup Tiến Trình Xuất Video Full HD */}
+          {/* POPUP TIẾN TRÌNH XUẤT VIDEO */}
           {isExporting && (
             <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-              <div className="bg-[#110f17] border border-white/[0.12] w-full max-w-xs rounded-3xl p-6 flex flex-col items-center justify-center space-y-4 shadow-2xl">
-                <div className="text-pink-400 animate-bounce">
-                  <CatPawSvg className="w-12 h-12" />
-                </div>
-                <div className="text-sm font-black text-zinc-100">Đang xuất video 1080p...</div>
-                <div className="w-full bg-zinc-800 h-2.5 rounded-full overflow-hidden">
-                  <div
-                    style={{ width: `${exportProgress}%` }}
-                    className="h-full bg-gradient-to-r from-pink-500 to-amber-400 transition-all duration-150"
-                  />
+              <div className="bg-[#110f17] border border-white/[0.12] w-64 rounded-3xl p-5 flex flex-col items-center justify-center space-y-3 shadow-2xl">
+                <CatPawSvg className="w-10 h-10 text-pink-400 animate-bounce" />
+                <div className="text-xs font-bold text-zinc-100">Đang xuất video...</div>
+                <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+                  <div style={{ width: `${exportProgress}%` }} className="h-full bg-gradient-to-r from-pink-500 to-amber-400" />
                 </div>
                 <span className="text-xs font-mono font-bold text-pink-400">{exportProgress}%</span>
               </div>
             </div>
           )}
 
-          {/* Toast Notification */}
+          {/* THÔNG BÁO TOAST */}
           {toastMsg && (
-            <div className="fixed bottom-6 right-6 z-50 bg-zinc-950/95 border border-pink-500/40 text-pink-200 px-4 py-2.5 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 backdrop-blur-md">
-              <CatPawSvg className="w-4 h-4 text-pink-400" />
+            <div className="fixed bottom-20 sm:bottom-6 right-1/2 translate-x-1/2 sm:translate-x-0 sm:right-6 z-50 bg-zinc-950/95 border border-pink-500/40 text-pink-200 px-3.5 py-1.5 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-1.5 backdrop-blur-md whitespace-nowrap">
+              <CatPawSvg className="w-3.5 h-3.5 text-pink-400" />
               <span>{toastMsg}</span>
             </div>
           )}
@@ -2628,6 +2011,17 @@
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
+  </script>
+
+  <!-- Đăng ký Service Worker cho PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('PWA Service Worker ready:', reg.scope))
+          .catch((err) => console.warn('PWA Service Worker error:', err));
+      });
+    }
   </script>
 </body>
 </html>
