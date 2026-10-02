@@ -247,7 +247,7 @@
       const [isProcessingAudio, setIsProcessingAudio] = useState(false);
       const bgmAudioRef = useRef(null);
 
-      // Drag and Drop
+      // Drag and Drop Video Clips
       const [draggedClipIndex, setDraggedClipIndex] = useState(null);
       const [dragOverIndex, setDragOverIndex] = useState(null);
 
@@ -255,9 +255,11 @@
       const [showScorePickerModal, setShowScorePickerModal] = useState(false);
       const [previewScoreTime, setPreviewScoreTime] = useState(0);
 
-      // Subtitles
+      // Subtitles & Text Dragging State
       const [subtitles, setSubtitles] = useState([]);
+      const [activeSubId, setActiveSubId] = useState(null);
       const [newSubText, setNewSubText] = useState('Highlight Matrix WW');
+      const [draggingSubId, setDraggingSubId] = useState(null);
 
       // Modals & Navigation
       const [activeInspectorTab, setActiveInspectorTab] = useState('clip');
@@ -338,7 +340,7 @@
         [videoClips]
       );
 
-      // CẬP NHẬT ÂM LƯỢNG CHO PREVIEW (Không dùng Web Audio API để tránh lỗi chặn và mất tiếng)
+      // Cập nhật âm lượng cho Preview mượt mà
       const updateRuntimeAudioVolumes = useCallback(() => {
         const vid = hiddenVideoRef.current;
         const bgm = bgmAudioRef.current;
@@ -367,6 +369,7 @@
         updateRuntimeAudioVolumes();
       }, [masterVolume, isMuted, bgmTrack, updateRuntimeAudioVolumes]);
 
+      // RENDER CANVAS (HỖ TRỢ TOẠ ĐỘ X, Y CỦA CHỮ)
       const drawFrameToContext = useCallback(
         (ctx, targetW, targetH, time) => {
           const vid = hiddenVideoRef.current;
@@ -482,13 +485,13 @@
             }
           }
 
-          // Subtitles
+          // Vẽ Subtitles (toạ độ X, Y tuỳ chỉnh theo %)
           subtitles.forEach((sub) => {
             if (time >= sub.start && time <= sub.end) {
               ctx.save();
               const maxW = targetW * 0.85;
               const scaleRatio = targetW / 1920;
-              let fontSize = Math.max(16, Math.floor((sub.fontSize || 32) * Math.max(0.6, scaleRatio)));
+              let fontSize = Math.max(16, Math.floor((sub.fontSize || 36) * Math.max(0.6, scaleRatio)));
               ctx.font = `bold ${fontSize}px sans-serif`;
               let metrics = ctx.measureText(sub.text);
 
@@ -499,14 +502,19 @@
               }
 
               ctx.textAlign = 'center';
-              const pX = targetW / 2;
-              const pY = (targetH * (sub.y || 82)) / 100;
+              const pX = (targetW * (sub.x !== undefined ? sub.x : 50)) / 100;
+              const pY = (targetH * (sub.y !== undefined ? sub.y : 82)) / 100;
 
               if (sub.showBg) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                ctx.fillStyle = sub.id === activeSubId ? 'rgba(236, 72, 153, 0.75)' : 'rgba(0, 0, 0, 0.75)';
                 ctx.beginPath();
-                ctx.roundRect(pX - metrics.width / 2 - 12, pY - fontSize * 0.85, metrics.width + 24, fontSize * 1.3, 8);
+                ctx.roundRect(pX - metrics.width / 2 - 14, pY - fontSize * 0.85, metrics.width + 28, fontSize * 1.3, 8);
                 ctx.fill();
+                if (sub.id === activeSubId) {
+                  ctx.lineWidth = 2;
+                  ctx.strokeStyle = '#fde047';
+                  ctx.stroke();
+                }
               }
 
               ctx.fillStyle = sub.color || '#ffffff';
@@ -515,7 +523,7 @@
             }
           });
         },
-        [getCurrentClipInfo, subtitles, fitMode]
+        [getCurrentClipInfo, subtitles, activeSubId, fitMode]
       );
 
       const renderCanvasFrame = useCallback(
@@ -974,7 +982,46 @@
         showToast(`Đã nhận ${trueDuration.toFixed(1)}s! Nhấn vào clip Điểm để chỉnh 15s cuối.`);
       };
 
-      // XUẤT VIDEO: Tạo thẻ Audio ảo độc lập qua Web Audio API để không làm mất tiếng Preview
+      // KÉO THẢ CHỮ TRỰC TIẾP TRÊN PREVIEW CANVAS
+      const handleCanvasPointerDown = (e) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const clickX = ((e.clientX - rect.left) / rect.width) * 100;
+        const clickY = ((e.clientY - rect.top) / rect.height) * 100;
+
+        // Tìm subtitle đang hiển thị gần vị trí click
+        const found = subtitles.find(
+          (s) =>
+            currentTime >= s.start &&
+            currentTime <= s.end &&
+            Math.abs((s.x !== undefined ? s.x : 50) - clickX) < 18 &&
+            Math.abs((s.y !== undefined ? s.y : 82) - clickY) < 10
+        );
+
+        if (found) {
+          setDraggingSubId(found.id);
+          setActiveSubId(found.id);
+        }
+      };
+
+      const handleCanvasPointerMove = (e) => {
+        if (!draggingSubId || !canvasRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const newX = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+        const newY = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
+
+        setSubtitles((prev) =>
+          prev.map((s) => (s.id === draggingSubId ? { ...s, x: newX, y: newY } : s))
+        );
+        renderCanvasFrame(currentTimeRef.current);
+      };
+
+      const handleCanvasPointerUp = () => {
+        setDraggingSubId(null);
+      };
+
+      // XUẤT VIDEO 1080P VỚI CHỮ & ÂM THANH CHUẨN
       const handleExportMP4 = async () => {
         if (videoClips.length === 0 || isExporting) return;
         pauseVideo();
@@ -1013,7 +1060,6 @@
               masterGain.gain.value = isMuted ? 0 : masterVolume;
               masterGain.connect(dest);
 
-              // 1. Thẻ video ảo cho luồng xuất
               if (!isMuted && vid.src) {
                 exportVidEl = document.createElement('video');
                 exportVidEl.src = vid.src;
@@ -1026,7 +1072,6 @@
                 exportVidEl.play().catch(() => {});
               }
 
-              // 2. Thẻ audio ảo cho luồng nhạc nền xuất
               if (bgmTrack && !bgmTrack.isMuted && bgm && bgm.src) {
                 exportBgmEl = new Audio(bgm.src);
                 const bgmSource = audioCtx.createMediaElementSource(exportBgmEl);
@@ -1629,7 +1674,7 @@
                   </div>
                 )}
 
-                {/* Tab: Subtitles */}
+                {/* Tab: Subtitles (Nâng cấp) */}
                 {activeInspectorTab === 'text' && (
                   <div className="space-y-3 bg-zinc-900/50 p-3 rounded-2xl border border-white/[0.04]">
                     <div className="space-y-1">
@@ -1646,33 +1691,65 @@
                       onClick={() => {
                         const newSub = {
                           id: `sub_${Date.now()}`,
-                          text: newSubText,
+                          text: newSubText || 'Highlight WW',
                           start: currentTimeRef.current,
-                          end: Math.min(totalDuration, currentTimeRef.current + 3.0),
-                          fontSize: 22,
+                          end: Math.min(totalDuration, currentTimeRef.current + 2.5),
+                          fontSize: 34,
                           color: '#fef08a',
-                          y: 82,
+                          x: 50, // Mặc định ở giữa
+                          y: 80, // Mặc định góc dưới
                           showBg: true
                         };
-                        setSubtitles([...subtitles, newSub]);
+                        setSubtitles((prev) => [...prev, newSub]);
+                        setActiveSubId(newSub.id);
                         renderCanvasFrame(currentTimeRef.current);
-                        showToast('Đã thêm chữ');
+                        showToast('Đã thêm chữ lên Timeline! (Kéo thả trên Preview để đổi chỗ)');
                       }}
-                      className="w-full py-2 bg-pink-500 hover:bg-pink-400 text-zinc-950 font-bold rounded-xl text-xs transition"
+                      className="w-full py-2.5 bg-gradient-to-r from-pink-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-zinc-950 font-black rounded-xl text-xs transition shadow-lg active:scale-95"
                     >
-                      + Thêm Tại Giây Hiện Tại
+                      + Thêm Tại Giây Hiện Tại ({currentTime.toFixed(1)}s)
                     </button>
-                    {subtitles.map((sub) => (
-                      <div key={sub.id} className="p-2 bg-zinc-800/60 rounded-xl flex items-center justify-between text-[11px]">
-                        <span className="truncate max-w-[150px]">{sub.text}</span>
-                        <button
-                          onClick={() => setSubtitles(subtitles.filter((s) => s.id !== sub.id))}
-                          className="text-rose-400 hover:text-rose-300"
+
+                    <div className="text-[10px] text-zinc-400 bg-black/40 p-2.5 rounded-xl border border-white/[0.05] space-y-1">
+                      <p className="text-amber-300 font-bold">💡 Mẹo điều khiển chữ:</p>
+                      <p>• <b>Kéo thả chữ trực tiếp</b> trên màn hình Preview phía trên để đặt ở bất cứ đâu.</p>
+                      <p>• <b>Bấm vào thanh chữ</b> trên Timeline để kim video nhảy đến vị trí đó.</p>
+                      <p>• Dùng nút <b>[◀]</b> và <b>[▶]</b> trên thanh chữ để kéo dài / rút ngắn thời gian.</p>
+                    </div>
+
+                    <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                      {subtitles.map((sub) => (
+                        <div
+                          key={sub.id}
+                          onClick={() => {
+                            setActiveSubId(sub.id);
+                            seekTo(sub.start);
+                          }}
+                          className={`p-2 rounded-xl flex items-center justify-between text-[11px] cursor-pointer transition border ${
+                            activeSubId === sub.id
+                              ? 'bg-pink-500/20 border-pink-400 text-pink-200'
+                              : 'bg-zinc-800/60 border-white/[0.04] text-zinc-300 hover:bg-zinc-700/60'
+                          }`}
                         >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                          <div className="truncate flex-1">
+                            <span className="font-bold">{sub.text}</span>
+                            <span className="text-[9px] font-mono text-zinc-400 ml-1.5">
+                              ({sub.start.toFixed(1)}s - {sub.end.toFixed(1)}s)
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSubtitles(subtitles.filter((s) => s.id !== sub.id));
+                              if (activeSubId === sub.id) setActiveSubId(null);
+                            }}
+                            className="text-rose-400 hover:text-rose-300 p-1"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -1729,14 +1806,19 @@
               </div>
             </aside>
 
-            {/* Center Canvas Preview & Controls */}
-            <main className="flex-1 flex flex-col items-center justify-between p-3 md:p-4 bg-[#08080c] relative order-1 lg:order-2 overflow-hidden">
+            {/* Center Canvas Preview & Controls (KÉO THẢ CHỮ TRÊN PREVIEW) */}
+            <main
+              className="flex-1 flex flex-col items-center justify-between p-3 md:p-4 bg-[#08080c] relative order-1 lg:order-2 overflow-hidden"
+              onPointerMove={handleCanvasPointerMove}
+              onPointerUp={handleCanvasPointerUp}
+            >
               <div className="flex-1 w-full flex items-center justify-center min-h-0 relative">
                 <canvas
                   ref={canvasRef}
                   width={selectedRatio.w}
                   height={selectedRatio.h}
-                  className="max-h-full max-w-full rounded-2xl shadow-[0_0_35px_rgba(0,0,0,0.85)] border border-white/[0.08] object-contain bg-black"
+                  onPointerDown={handleCanvasPointerDown}
+                  className="max-h-full max-w-full rounded-2xl shadow-[0_0_35px_rgba(0,0,0,0.85)] border border-white/[0.08] object-contain bg-black cursor-crosshair"
                   style={{ aspectRatio: selectedRatio.ratioCss }}
                 />
               </div>
@@ -1777,12 +1859,12 @@
             </main>
           </div>
 
-          {/* Bottom Timeline Section */}
-          <footer className="h-44 border-t border-white/[0.08] bg-[#09090d] flex flex-col shrink-0 p-3 space-y-2 select-none relative z-10">
+          {/* Bottom Timeline Section (CÓ THANH TEXT LAYER RIÊNG) */}
+          <footer className="h-56 border-t border-white/[0.08] bg-[#09090d] flex flex-col shrink-0 p-3 space-y-2 select-none relative z-10">
             <div className="flex items-center justify-between text-xs text-zinc-400">
               <span className="font-bold flex items-center gap-1.5 text-zinc-300">
                 <CatPawSvg className="w-3.5 h-3.5 text-pink-400" />
-                <span>Dòng thời gian (Kéo thả clip để đổi vị trí)</span>
+                <span>Dòng thời gian (Kéo thanh chữ hoặc bấm để nhảy kim)</span>
               </span>
               <span className="text-[11px] font-mono text-pink-400 font-bold">
                 {currentTime.toFixed(2)}s / {totalDuration.toFixed(2)}s
@@ -1851,8 +1933,76 @@
               )}
             </div>
 
+            {/* THANH TEXT TRACK LAYER RIÊNG BIỆT (Kéo dài/thu ngắn & nhảy kim video) */}
+            <div className="relative h-7 bg-zinc-950/80 rounded-xl border border-dashed border-amber-500/30 overflow-hidden flex items-center px-1">
+              {subtitles.length === 0 ? (
+                <span className="text-[10px] text-zinc-600 pl-2">Chưa có chữ trên timeline. Vào tab "Chữ" để thêm.</span>
+              ) : (
+                subtitles.map((sub) => {
+                  const leftPercent = totalDuration > 0 ? (sub.start / totalDuration) * 100 : 0;
+                  const widthPercent = totalDuration > 0 ? ((sub.end - sub.start) / totalDuration) * 100 : 10;
+                  const isCurrent = activeSubId === sub.id;
+
+                  return (
+                    <div
+                      key={sub.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveSubId(sub.id);
+                        seekTo(sub.start); // Bấm vào là kim video nhảy đến vị trí đó
+                      }}
+                      style={{
+                        left: `${Math.max(0, leftPercent)}%`,
+                        width: `${Math.max(4, widthPercent)}%`
+                      }}
+                      className={`absolute top-0.5 bottom-0.5 rounded-lg flex items-center justify-between px-1.5 border text-[10px] font-bold cursor-pointer transition select-none z-10 ${
+                        isCurrent
+                          ? 'bg-amber-400 text-zinc-950 border-white shadow-md'
+                          : 'bg-amber-500/30 text-amber-300 border-amber-500/50 hover:bg-amber-500/50'
+                      }`}
+                      title="Bấm để đưa kim phát đến chữ này"
+                    >
+                      {/* Nút kéo lùi đầu trái */}
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newStart = Math.max(0, sub.start - 0.5);
+                          setSubtitles((prev) =>
+                            prev.map((s) => (s.id === sub.id ? { ...s, start: newStart } : s))
+                          );
+                          seekTo(newStart);
+                        }}
+                        className="hover:scale-125 px-0.5 cursor-ew-resize font-mono opacity-70 hover:opacity-100"
+                        title="Kéo dài về trước"
+                      >
+                        ◀
+                      </span>
+
+                      <span className="truncate mx-1">{sub.text}</span>
+
+                      {/* Nút kéo dài đầu phải */}
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const newEnd = Math.min(totalDuration, sub.end + 0.5);
+                          setSubtitles((prev) =>
+                            prev.map((s) => (s.id === sub.id ? { ...s, end: newEnd } : s))
+                          );
+                          seekTo(sub.start);
+                        }}
+                        className="hover:scale-125 px-0.5 cursor-ew-resize font-mono opacity-70 hover:opacity-100"
+                        title="Kéo dài về sau"
+                      >
+                        ▶
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
             {/* BGM Audio Track Row */}
-            <div className="h-10 bg-zinc-950/80 rounded-xl border border-white/[0.06] px-3 flex items-center justify-between">
+            <div className="h-9 bg-zinc-950/80 rounded-xl border border-white/[0.06] px-3 flex items-center justify-between">
               {bgmTrack ? (
                 <div className="flex items-center justify-between w-full text-xs">
                   <div className="flex items-center gap-2">
