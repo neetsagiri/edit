@@ -3,18 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NekoCut - Trình Biên Tập Video Wuthering Waves</title>
+  <title>NekoCut Pro - Trình Biên Tập Video Wuthering Waves</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- React 18, ReactDOM & Babel Standalone để chạy JSX trực tiếp trên trình duyệt -->
+  <!-- React 18, ReactDOM & Babel Standalone -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
-    /* Ẩn thanh cuộn nhưng vẫn cuộn mượt mà */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -22,7 +21,6 @@
 <body class="bg-[#07070b] text-white selection:bg-pink-500 selection:text-white">
   <div id="root"></div>
 
-  <!-- Script ứng dụng NekoCut độc lập -->
   <script type="text/babel">
     const { useState, useRef, useEffect, useCallback } = React;
 
@@ -140,10 +138,12 @@
     const CheckCircleIcon = ({ className = "w-4 h-4" }) => (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
     );
+    const VolumeIcon = ({ className = "w-4 h-4" }) => (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+    );
 
     const SAMPLE_WW_VIDEO = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
 
-    // Cấu hình tỉ lệ chuẩn Full HD / 2K
     const ASPECT_RATIOS = [
       { id: '16-9', label: '16:9 (Chuẩn WW 1080p)', w: 1920, h: 1080, ratioCss: '16/9', isDefault: true },
       { id: '9-16', label: '9:16 (TikTok / Shorts 1080p)', w: 1080, h: 1920, ratioCss: '9/16' },
@@ -183,7 +183,7 @@
       { id: 'blur_in', label: '🌫 Mờ Nét', icon: '🌫' },
       { id: 'slide_up', label: '⬆ Trượt Từ Dưới', icon: '⬆️' },
       { id: 'slide_down', label: '⬇️ Trượt Từ Trên', icon: '⬇️' },
-      { id: 'slide_left', label: '⬅️ Lướt Từ Trái', icon: '⬅️' },
+      { id: 'slide_left', label: '⬅️️ Lướt Từ Trái', icon: '⬅️' },
       { id: 'rgb_split', label: '🌈 Quang Sai RGB', icon: '🌈' }
     ];
 
@@ -237,7 +237,8 @@
       const [selectedRatio, setSelectedRatio] = useState(ASPECT_RATIOS[0]);
       const [fitMode, setFitMode] = useState('fit');
 
-      // Audio Track State
+      // Audio Control: Master, BGM & Video Clip Volume
+      const [masterVolume, setMasterVolume] = useState(1.0);
       const [bgmTrack, setBgmTrack] = useState(null);
       const [showAddMusicModal, setShowAddMusicModal] = useState(false);
       const [ytLinkInput, setYtLinkInput] = useState('');
@@ -335,7 +336,27 @@
         [videoClips]
       );
 
-      // CƠ CHẾ RENDER CHUẨN HI-DPI: Dùng chung cho cả Canvas Preview lẫn Canvas Export 1080p
+      // Cập nhật âm lượng thời gian thực cho thẻ Video và thẻ Audio
+      const updateRuntimeAudioVolumes = useCallback(() => {
+        const vid = hiddenVideoRef.current;
+        const bgm = bgmAudioRef.current;
+        const curInfo = getCurrentClipInfo(currentTimeRef.current);
+
+        if (vid && curInfo) {
+          const effectiveClipVol = isMuted ? 0 : Math.min(1.0, (curInfo.clip.volume ?? 1.0) * masterVolume);
+          vid.volume = effectiveClipVol;
+        }
+
+        if (bgm && bgmTrack) {
+          const effectiveBgmVol = (isMuted || bgmTrack.isMuted) ? 0 : Math.min(1.0, (bgmTrack.volume ?? 0.8) * masterVolume);
+          bgm.volume = effectiveBgmVol;
+        }
+      }, [getCurrentClipInfo, isMuted, masterVolume, bgmTrack]);
+
+      useEffect(() => {
+        updateRuntimeAudioVolumes();
+      }, [masterVolume, isMuted, bgmTrack, updateRuntimeAudioVolumes]);
+
       const drawFrameToContext = useCallback(
         (ctx, targetW, targetH, time) => {
           const vid = hiddenVideoRef.current;
@@ -451,7 +472,7 @@
             }
           }
 
-          // Render Subtitles tỉ lệ theo độ phân giải canvas
+          // Subtitles
           subtitles.forEach((sub) => {
             if (time >= sub.start && time <= sub.end) {
               ctx.save();
@@ -515,13 +536,13 @@
           if (Math.abs(vid.currentTime - info.mediaSourceTime) > 0.15) {
             vid.currentTime = info.mediaSourceTime;
           }
-          vid.volume = isMuted ? 0 : info.clip.volume || 1.0;
+          updateRuntimeAudioVolumes();
           vid.play().catch(() => {});
         }
 
         if (bgm && bgmTrack && bgm.src) {
           bgm.currentTime = currentTimeRef.current % (bgmTrack.duration || 9999);
-          bgm.volume = bgmTrack.isMuted ? 0 : (bgmTrack.volume ?? 0.8);
+          updateRuntimeAudioVolumes();
           bgm.play().catch(() => {});
         }
 
@@ -559,7 +580,7 @@
                 setActiveClipId(currentInfo.clip.id);
                 if (vid.src !== currentInfo.clip.url) vid.src = currentInfo.clip.url;
                 vid.currentTime = currentInfo.mediaSourceTime;
-                vid.volume = isMuted ? 0 : currentInfo.clip.volume || 1.0;
+                updateRuntimeAudioVolumes();
                 vid.play().catch(() => {});
               } else if (vid.paused && vid.readyState >= 2) {
                 vid.play().catch(() => {});
@@ -590,7 +611,7 @@
         return () => {
           if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
-      }, [getCurrentClipInfo, renderCanvasFrame, totalDuration, isMuted]);
+      }, [getCurrentClipInfo, renderCanvasFrame, totalDuration, updateRuntimeAudioVolumes]);
 
       useEffect(() => {
         const handleKeyDown = (e) => {
@@ -618,6 +639,7 @@
             if (vid.src !== info.clip.url) vid.src = info.clip.url;
           }
           vid.currentTime = info.mediaSourceTime;
+          updateRuntimeAudioVolumes();
           const onSeek = () => {
             renderCanvasFrame(clamped);
             vid.removeEventListener('seeked', onSeek);
@@ -630,13 +652,14 @@
 
         if (bgmAudioRef.current && bgmTrack) {
           bgmAudioRef.current.currentTime = clamped % (bgmTrack.duration || 9999);
+          updateRuntimeAudioVolumes();
         }
       };
 
       const handleAddMusicFromFile = async (file) => {
         if (!file) return;
         setIsProcessingAudio(true);
-        showToast('Đang trích xuất âm thanh từ tệp...');
+        showToast('Đang nạp file nhạc...');
 
         try {
           const url = URL.createObjectURL(file);
@@ -653,7 +676,7 @@
               name: file.name.substring(0, 30),
               url,
               duration: dur,
-              volume: 0.8,
+              volume: 1.0,
               isMuted: false,
               type: file.type.startsWith('video') ? 'video_extracted' : 'audio'
             });
@@ -674,7 +697,7 @@
               name: file.name.substring(0, 30),
               url,
               duration: totalDuration || 60,
-              volume: 0.8,
+              volume: 1.0,
               isMuted: false,
               type: 'audio'
             });
@@ -689,7 +712,6 @@
         }
       };
 
-      // XỬ LÝ YOUTUBE BGM: Sử dụng Invidious API để bypass CORS chính sách của Google
       const handleAddMusicFromYouTube = async () => {
         const rawLink = ytLinkInput.trim();
         if (!rawLink) {
@@ -724,7 +746,7 @@
             name: data.title?.substring(0, 30) || `YouTube OST (${videoId})`,
             url: bestAudio.url,
             duration: data.lengthSeconds || totalDuration || 120,
-            volume: 0.85,
+            volume: 1.0,
             isMuted: false,
             type: 'youtube',
             videoId
@@ -740,14 +762,14 @@
           setYtLinkInput('');
           showToast('Đã kết nối nhạc từ YouTube thành công!');
         } catch (err) {
-          console.warn('Lỗi Invidious, fallback về mẫu demo:', err);
+          console.warn('Fallback link mẫu:', err);
           const sampleAudioUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
           setBgmTrack({
             id: `yt_${videoId}_${Date.now()}`,
             name: `YouTube Stream (${videoId})`,
             url: sampleAudioUrl,
             duration: totalDuration || 120,
-            volume: 0.85,
+            volume: 1.0,
             isMuted: false,
             type: 'youtube',
             videoId
@@ -942,7 +964,7 @@
         showToast(`Đã nhận ${trueDuration.toFixed(1)}s! Nhấn vào clip Điểm để chỉnh 15s cuối.`);
       };
 
-      // XUẤT VIDEO FULL HD 1080P/2K TỐC ĐỘ CAO
+      // XUẤT VIDEO VỚI TOÀN BỘ CẤU HÌNH ÂM LƯỢNG MASTER, BGM & CLIP
       const handleExportMP4 = async () => {
         if (videoClips.length === 0 || isExporting) return;
         pauseVideo();
@@ -956,7 +978,6 @@
           return;
         }
 
-        // Tạo Canvas ảo độ phân giải chuẩn Full HD / 2K
         const exportCanvas = document.createElement('canvas');
         exportCanvas.width = selectedRatio.w;
         exportCanvas.height = selectedRatio.h;
@@ -966,26 +987,42 @@
           const stream = exportCanvas.captureStream(30);
 
           let audioCtx = null;
+          let vidGainNode = null;
+          let bgmGainNode = null;
+          let masterGainNode = null;
+
           try {
             const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
             if (AudioCtxClass) {
               audioCtx = new AudioCtxClass();
               const dest = audioCtx.createMediaStreamDestination();
 
-              if (!isMuted) {
-                const vidSource = audioCtx.createMediaElementSource(vid);
-                vidSource.connect(dest);
-                vidSource.connect(audioCtx.destination);
+              masterGainNode = audioCtx.createGain();
+              masterGainNode.gain.value = isMuted ? 0 : masterVolume;
+              masterGainNode.connect(dest);
+
+              // 1. Kết nối kênh Video âm thanh
+              if (vid) {
+                try {
+                  const vidSource = audioCtx.createMediaElementSource(vid);
+                  vidGainNode = audioCtx.createGain();
+                  const firstClip = videoClips[0];
+                  vidGainNode.gain.value = firstClip ? (firstClip.volume ?? 1.0) : 1.0;
+                  vidSource.connect(vidGainNode);
+                  vidGainNode.connect(masterGainNode);
+                } catch (e) {
+                  console.warn('Vid source already connected:', e);
+                }
               }
 
+              // 2. Kết nối kênh BGM âm thanh
               if (bgmTrack && !bgmTrack.isMuted && bgm && bgm.src) {
                 try {
                   const bgmSource = audioCtx.createMediaElementSource(bgm);
-                  const gainNode = audioCtx.createGain();
-                  gainNode.gain.value = bgmTrack.volume ?? 0.8;
-                  bgmSource.connect(gainNode);
-                  gainNode.connect(dest);
-                  gainNode.connect(audioCtx.destination);
+                  bgmGainNode = audioCtx.createGain();
+                  bgmGainNode.gain.value = bgmTrack.volume ?? 1.0;
+                  bgmSource.connect(bgmGainNode);
+                  bgmGainNode.connect(masterGainNode);
                 } catch (err) {
                   console.warn('BGM source already connected:', err);
                 }
@@ -1005,7 +1042,7 @@
 
           const recorder = new MediaRecorder(stream, {
             mimeType,
-            videoBitsPerSecond: 14000000 // 14 Mbps cho chất lượng Full HD
+            videoBitsPerSecond: 14000000
           });
 
           const chunks = [];
@@ -1031,7 +1068,6 @@
 
           recorder.start();
 
-          // Render mượt mà với safety timeout 40ms
           const fps = 30;
           const totalSteps = Math.max(30, Math.round(totalDuration * fps));
           for (let i = 0; i <= totalSteps; i++) {
@@ -1040,6 +1076,12 @@
             if (info) {
               if (vid.src !== info.clip.url) vid.src = info.clip.url;
               vid.currentTime = info.mediaSourceTime;
+
+              // Điều chỉnh GainNode theo clip hiện tại khi render
+              if (vidGainNode) {
+                vidGainNode.gain.value = info.clip.volume ?? 1.0;
+              }
+
               if (bgm && bgmTrack) {
                 bgm.currentTime = targetT % (bgmTrack.duration || 9999);
               }
@@ -1050,7 +1092,7 @@
                   res();
                 };
                 vid.addEventListener('seeked', onSeek);
-                setTimeout(onSeek, 40); // Khắc phục tắc nghẽn decode I-frame
+                setTimeout(onSeek, 40);
               });
             }
             setExportProgress(Math.round((i / totalSteps) * 100));
@@ -1380,8 +1422,35 @@
               </div>
 
               <div className="space-y-3 text-xs flex-1">
-                {/* Music Banner */}
-                <div className="bg-gradient-to-br from-pink-500/10 via-zinc-900/90 to-amber-500/10 p-3 rounded-2xl border border-pink-500/20 space-y-2">
+                {/* Master Volume Section (Toàn dự án & Xuất file) */}
+                <div className="bg-gradient-to-br from-amber-500/10 via-zinc-900/90 to-pink-500/10 p-3 rounded-2xl border border-amber-500/20 space-y-2">
+                  <div className="flex items-center justify-between text-zinc-200 font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <VolumeIcon className="w-4 h-4 text-amber-400" />
+                      <span>Âm Lượng Tổng (Master)</span>
+                    </span>
+                    <span className="text-amber-400 font-mono font-bold text-xs">
+                      {Math.round(masterVolume * 100)}%
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={2.0}
+                    step={0.05}
+                    value={masterVolume}
+                    onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
+                    className="w-full accent-amber-400 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
+                    <button onClick={() => setMasterVolume(0)} className="hover:text-zinc-300">0%</button>
+                    <button onClick={() => setMasterVolume(1.0)} className="hover:text-amber-400">100% (Chuẩn)</button>
+                    <button onClick={() => setMasterVolume(2.0)} className="hover:text-zinc-300">200% (Boost)</button>
+                  </div>
+                </div>
+
+                {/* Music Banner & BGM Volume */}
+                <div className="bg-gradient-to-br from-pink-500/10 via-zinc-900/90 to-amber-500/10 p-3 rounded-2xl border border-pink-500/20 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-zinc-200 flex items-center gap-1.5">
                       <MusicIcon className="w-3.5 h-3.5 text-pink-400" />
@@ -1393,6 +1462,30 @@
                       </span>
                     )}
                   </div>
+
+                  {bgmTrack && (
+                    <div className="space-y-1 bg-black/40 p-2 rounded-xl border border-white/[0.04]">
+                      <div className="flex items-center justify-between text-[11px] text-zinc-300">
+                        <span className="text-zinc-400">Âm lượng nhạc:</span>
+                        <span className="font-mono text-pink-400 font-bold">
+                          {Math.round((bgmTrack.volume ?? 1.0) * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={2.0}
+                        step={0.05}
+                        value={bgmTrack.volume ?? 1.0}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          setBgmTrack((prev) => ({ ...prev, volume: v }));
+                        }}
+                        className="w-full accent-pink-400 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                      />
+                    </div>
+                  )}
+
                   <button
                     onClick={() => setShowAddMusicModal(true)}
                     className="w-full py-2 px-3 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-200 font-bold text-xs flex items-center justify-center gap-1.5 border border-pink-500/30 transition active:scale-95"
@@ -1407,6 +1500,33 @@
                     <div className="flex items-center justify-between font-bold text-zinc-200">
                       <span className="truncate">{activeClip.name}</span>
                       <span className="text-[10px] text-pink-400 font-mono">{activeClip.duration.toFixed(1)}s</span>
+                    </div>
+
+                    {/* Clip Volume Slider */}
+                    <div className="space-y-1 bg-zinc-950/60 p-2 rounded-xl border border-white/[0.05]">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-zinc-300 font-bold flex items-center gap-1">
+                          <VolumeIcon className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Âm lượng đoạn này:</span>
+                        </span>
+                        <span className="font-mono text-amber-400 font-bold">
+                          {Math.round((activeClip.volume ?? 1.0) * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={2.0}
+                        step={0.05}
+                        value={activeClip.volume ?? 1.0}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          setVideoClips((prev) =>
+                            prev.map((c) => (c.id === activeClip.id ? { ...c, volume: v } : c))
+                          );
+                        }}
+                        className="w-full accent-amber-400 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
+                      />
                     </div>
 
                     <div className="grid grid-cols-3 gap-1.5">
@@ -1592,7 +1712,7 @@
               </div>
             </aside>
 
-            {/* Center Canvas Preview & Controls (HiDPI Sharp Rendering) */}
+            {/* Center Canvas Preview & Controls */}
             <main className="flex-1 flex flex-col items-center justify-between p-3 md:p-4 bg-[#08080c] relative order-1 lg:order-2 overflow-hidden">
               <div className="flex-1 w-full flex items-center justify-center min-h-0 relative">
                 <canvas
@@ -1628,7 +1748,9 @@
                   </button>
                   <button
                     onClick={() => setIsMuted(!isMuted)}
-                    className="w-8 h-8 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center transition border border-white/[0.06]"
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center transition border ${
+                      isMuted ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-white/[0.06]'
+                    }`}
                     title={isMuted ? "Bật tiếng" : "Tắt tiếng"}
                   >
                     {isMuted ? "🔇" : "🔊"}
@@ -1685,11 +1807,16 @@
                       <span className="text-[10px] font-mono text-zinc-400 shrink-0">{clip.duration.toFixed(1)}s</span>
                     </div>
 
-                    {clip.isScoreClip && (
-                      <span className="text-[9px] text-amber-300 font-bold bg-amber-500/20 px-1 py-0.5 rounded self-start">
-                        Chạm để đổi 2s điểm
+                    <div className="flex items-center justify-between w-full">
+                      {clip.isScoreClip ? (
+                        <span className="text-[9px] text-amber-300 font-bold bg-amber-500/20 px-1 py-0.5 rounded">
+                          Chạm để đổi 2s điểm
+                        </span>
+                      ) : <span />}
+                      <span className="text-[9px] font-mono text-amber-400/80 font-bold">
+                        🔊 {Math.round((clip.volume ?? 1.0) * 100)}%
                       </span>
-                    )}
+                    </div>
                   </div>
                 );
               })}
@@ -1714,7 +1841,9 @@
                   <div className="flex items-center gap-2">
                     <MusicIcon className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
                     <span className="font-bold text-zinc-200 truncate max-w-[200px]">{bgmTrack.name}</span>
-                    <span className="text-[10px] font-mono text-zinc-400">({bgmTrack.duration.toFixed(1)}s)</span>
+                    <span className="text-[10px] font-mono text-pink-400 font-bold">
+                      ({Math.round((bgmTrack.volume ?? 1.0) * 100)}%)
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -1920,7 +2049,6 @@
       );
     }
 
-    /* Khởi chạy React 18 */
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
