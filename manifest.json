@@ -1,0 +1,16 @@
+{
+  "name": "NekoCut Pro",
+  "short_name": "NekoCut",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#07070b",
+  "theme_color": "#07070b",
+  "icons": [
+    {
+      "src": "nekocut.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
