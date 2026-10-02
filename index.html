@@ -14,7 +14,6 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
-    /* Ẩn thanh cuộn nhưng vẫn cuộn mượt mà */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -22,7 +21,6 @@
 <body class="bg-[#07070b] text-white selection:bg-pink-500 selection:text-white">
   <div id="root"></div>
 
-  <!-- Script ứng dụng NekoCut độc lập -->
   <script type="text/babel">
     const { useState, useRef, useEffect, useCallback } = React;
 
@@ -154,24 +152,9 @@
     ];
 
     const WW_STYLES = [
-      {
-        id: 'crisp',
-        name: 'Crisp & Punchy',
-        desc: 'Contrast +15, Saturation +8, Highlights -8. Nét sâu đòn đánh.',
-        css: 'contrast(1.18) saturate(1.12) brightness(0.96)'
-      },
-      {
-        id: 'cyber',
-        name: 'Deep Cyber Matrix',
-        desc: 'Lạnh & Sâu, làm rực sáng các vệt tia VFX neon của sàn đấu.',
-        css: 'contrast(1.22) saturate(1.25) hue-rotate(185deg) brightness(0.92)'
-      },
-      {
-        id: 'vibrant',
-        name: 'Vibrant VFX Anime',
-        desc: 'Màu sắc bùng nổ, chiêu nộ rực rỡ và nịnh mắt khi lên Shorts/TikTok.',
-        css: 'contrast(1.15) saturate(1.45) brightness(1.04)'
-      }
+      { id: 'crisp', name: 'Crisp & Punchy', desc: 'Contrast +15, Saturation +8. Nét sâu đòn đánh.', css: 'contrast(1.18) saturate(1.12) brightness(0.96)' },
+      { id: 'cyber', name: 'Deep Cyber Matrix', desc: 'Lạnh & Sâu, làm rực sáng các vệt tia VFX neon.', css: 'contrast(1.22) saturate(1.25) hue-rotate(185deg) brightness(0.92)' },
+      { id: 'vibrant', name: 'Vibrant VFX Anime', desc: 'Màu sắc bùng nổ, chiêu nộ rực rỡ và nịnh mắt.', css: 'contrast(1.15) saturate(1.45) brightness(1.04)' }
     ];
 
     const ANIM_IN_EFFECTS = [
@@ -194,12 +177,7 @@
       { id: 'crisp', name: 'Crisp & Punchy', cat: 'ww', tag: 'WW Hot', css: 'contrast(1.18) saturate(1.12) brightness(0.96)' },
       { id: 'high-contrast', name: 'High Contrast (Điểm)', cat: 'ww', tag: 'WW Score', css: 'contrast(1.35) saturate(1.2) brightness(1.05)' },
       { id: 'cyber', name: 'Deep Cyber Matrix', cat: 'ww', tag: 'WW Neon', css: 'contrast(1.22) saturate(1.25) hue-rotate(185deg) brightness(0.92)' },
-      { id: 'vibrant', name: 'Vibrant VFX Anime', cat: 'ww', tag: 'WW Anime', css: 'contrast(1.15) saturate(1.45) brightness(1.04)' },
-      { id: 'cinematic_teal', name: 'Teal & Orange', cat: 'cinema', tag: 'Blockbuster', css: 'contrast(1.2) saturate(1.15) sepia(0.18) hue-rotate(-15deg)' },
-      { id: 'dramatic', name: 'Dramatic Dark', cat: 'cinema', tag: 'Cinema', css: 'contrast(1.38) brightness(0.88) saturate(0.92)' },
-      { id: 'noir', name: 'Noir Huyền Bí', cat: 'cinema', tag: 'Mono', css: 'grayscale(1) contrast(1.42) brightness(0.92)' },
-      { id: 'warm_sunset', name: 'Sunset Glow', cat: 'mood', tag: 'Warm', css: 'sepia(0.22) saturate(1.38) hue-rotate(-20deg) contrast(1.12)' },
-      { id: 'cold_abyss', name: 'Cold Abyss', cat: 'mood', tag: 'Cold', css: 'hue-rotate(160deg) saturate(1.25) contrast(1.18) brightness(0.92)' }
+      { id: 'vibrant', name: 'Vibrant VFX Anime', cat: 'ww', tag: 'WW Anime', css: 'contrast(1.15) saturate(1.45) brightness(1.04)' }
     ];
 
     const getExactVideoDuration = (videoUrl) => {
@@ -207,7 +185,7 @@
         const v = document.createElement('video');
         v.preload = 'auto';
         v.src = videoUrl;
-        const onMeta = () => {
+        v.onloadedmetadata = () => {
           if (v.duration === Infinity || isNaN(v.duration) || v.duration === 0) {
             v.currentTime = 1e101;
             v.ontimeupdate = () => {
@@ -220,7 +198,6 @@
             resolve(v.duration);
           }
         };
-        v.onloadedmetadata = onMeta;
         v.onerror = () => resolve(15);
         setTimeout(() => resolve(v.duration && !isNaN(v.duration) ? v.duration : 15), 2000);
       });
@@ -245,23 +222,18 @@
       const [showAddMusicModal, setShowAddMusicModal] = useState(false);
       const [ytLinkInput, setYtLinkInput] = useState('');
       const [isProcessingAudio, setIsProcessingAudio] = useState(false);
-      const bgmAudioRef = useRef(null);
 
-      // Drag and Drop Video Clips
-      const [draggedClipIndex, setDraggedClipIndex] = useState(null);
-      const [dragOverIndex, setDragOverIndex] = useState(null);
-
-      // Popup 15s Cuối để chọn 2s điểm
-      const [showScorePickerModal, setShowScorePickerModal] = useState(false);
-      const [previewScoreTime, setPreviewScoreTime] = useState(0);
-
-      // Subtitles & Text Dragging State
+      // Subtitles & Text Dragging
       const [subtitles, setSubtitles] = useState([]);
       const [activeSubId, setActiveSubId] = useState(null);
       const [newSubText, setNewSubText] = useState('Highlight Matrix WW');
       const [draggingSubId, setDraggingSubId] = useState(null);
 
-      // Modals & Navigation
+      // Drag and Drop & Modals
+      const [draggedClipIndex, setDraggedClipIndex] = useState(null);
+      const [dragOverIndex, setDragOverIndex] = useState(null);
+      const [showScorePickerModal, setShowScorePickerModal] = useState(false);
+      const [previewScoreTime, setPreviewScoreTime] = useState(0);
       const [activeInspectorTab, setActiveInspectorTab] = useState('clip');
       const [historyStack, setHistoryStack] = useState([]);
       const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -275,6 +247,7 @@
       // Core Refs
       const canvasRef = useRef(null);
       const hiddenVideoRef = useRef(null);
+      const bgmAudioRef = useRef(null);
       const pickerVideoRef = useRef(null);
       const timelineTrackRef = useRef(null);
       const currentTimeRef = useRef(0);
@@ -292,10 +265,7 @@
       }, [videoClips]);
 
       const handleUndo = () => {
-        if (historyStack.length === 0) {
-          showToast('Không còn thao tác để hoàn tác');
-          return;
-        }
+        if (historyStack.length === 0) return;
         const previous = historyStack[historyStack.length - 1];
         setHistoryStack((prev) => prev.slice(0, -1));
         setVideoClips(previous);
@@ -340,7 +310,7 @@
         [videoClips]
       );
 
-      // Cập nhật âm lượng cho Preview mượt mà
+      // CẬP NHẬT ÂM LƯỢNG TRỰC TIẾP LÊN THẺ NGUYÊN BẢN (KHÔNG BỊ CHẶN)
       const updateRuntimeAudioVolumes = useCallback(() => {
         const vid = hiddenVideoRef.current;
         const bgm = bgmAudioRef.current;
@@ -348,8 +318,9 @@
 
         if (vid && curInfo) {
           if (isMuted) {
-            vid.volume = 0;
+            vid.muted = true;
           } else {
+            vid.muted = false;
             const rawVol = (curInfo.clip.volume ?? 1.0) * masterVolume;
             vid.volume = Math.max(0, Math.min(1.0, rawVol));
           }
@@ -357,8 +328,9 @@
 
         if (bgm && bgmTrack) {
           if (isMuted || bgmTrack.isMuted) {
-            bgm.volume = 0;
+            bgm.muted = true;
           } else {
+            bgm.muted = false;
             const rawBgmVol = (bgmTrack.volume ?? 1.0) * masterVolume;
             bgm.volume = Math.max(0, Math.min(1.0, rawBgmVol));
           }
@@ -369,7 +341,7 @@
         updateRuntimeAudioVolumes();
       }, [masterVolume, isMuted, bgmTrack, updateRuntimeAudioVolumes]);
 
-      // RENDER CANVAS (HỖ TRỢ TOẠ ĐỘ X, Y CỦA CHỮ)
+      // RENDER CANVAS CHUẨN
       const drawFrameToContext = useCallback(
         (ctx, targetW, targetH, time) => {
           const vid = hiddenVideoRef.current;
@@ -382,7 +354,6 @@
             const { clip, clipOffsetTime } = clipInfo;
 
             ctx.save();
-
             if (fitMode === 'blur') {
               ctx.save();
               ctx.filter = 'blur(28px) brightness(0.6)';
@@ -396,10 +367,9 @@
             const filterDef = FILTERS.find((f) => f.id === clip.colorFilter) || FILTERS[0];
             let activeCssFilter = filterDef.css !== 'none' ? filterDef.css : '';
 
-            const sFactor =
-              fitMode === 'cover'
-                ? Math.max(targetW / vid.videoWidth, targetH / vid.videoHeight)
-                : Math.min(targetW / vid.videoWidth, targetH / vid.videoHeight);
+            const sFactor = fitMode === 'cover'
+              ? Math.max(targetW / vid.videoWidth, targetH / vid.videoHeight)
+              : Math.min(targetW / vid.videoWidth, targetH / vid.videoHeight);
 
             const drawW = vid.videoWidth * sFactor;
             const drawH = vid.videoHeight * sFactor;
@@ -411,51 +381,12 @@
 
             if (isInAnim) {
               const prog = Math.min(1, Math.max(0, clipOffsetTime / animDuration));
-              const easeOut = Math.sin((prog * Math.PI) / 2);
-
               if (clip.animIn === 'flash') {
                 ctx.filter = activeCssFilter || 'none';
                 ctx.drawImage(vid, drawX, drawY, drawW, drawH);
                 ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0, 0.9 * (1 - prog))})`;
                 ctx.fillRect(0, 0, targetW, targetH);
-              } else if (clip.animIn === 'black_flash') {
-                ctx.filter = activeCssFilter || 'none';
-                ctx.drawImage(vid, drawX, drawY, drawW, drawH);
-                ctx.fillStyle = `rgba(0, 0, 0, ${Math.max(0, 1 - prog)})`;
-                ctx.fillRect(0, 0, targetW, targetH);
-              } else if (clip.animIn === 'whip') {
-                const sc = 1.35 - 0.35 * easeOut;
-                ctx.translate(targetW / 2, targetH / 2);
-                ctx.scale(sc, sc);
-                ctx.translate(-targetW / 2, -targetH / 2);
-                ctx.filter = activeCssFilter || 'none';
-                ctx.drawImage(vid, drawX, drawY, drawW, drawH);
-              } else if (clip.animIn === 'zoom_in') {
-                const sc = 0.7 + 0.3 * easeOut;
-                ctx.translate(targetW / 2, targetH / 2);
-                ctx.scale(sc, sc);
-                ctx.translate(-targetW / 2, -targetH / 2);
-                ctx.globalAlpha = Math.min(1, prog * 1.3);
-                ctx.filter = activeCssFilter || 'none';
-                ctx.drawImage(vid, drawX, drawY, drawW, drawH);
-              } else if (clip.animIn === 'glitch') {
-                const shiftX = (1 - prog) * (Math.random() * 20 - 10);
-                const shiftY = (1 - prog) * (Math.random() * 10 - 5);
-                ctx.filter = (activeCssFilter ? activeCssFilter + ' ' : '') + `hue-rotate(${(1 - prog) * 90}deg)`;
-                ctx.drawImage(vid, drawX + shiftX, drawY + shiftY, drawW, drawH);
-              } else if (clip.animIn === 'shake') {
-                const amp = (1 - prog) * 16;
-                const ox = Math.sin(prog * Math.PI * 10) * amp;
-                const oy = Math.cos(prog * Math.PI * 8) * amp * 0.5;
-                ctx.translate(ox, oy);
-                ctx.filter = activeCssFilter || 'none';
-                ctx.drawImage(vid, drawX, drawY, drawW, drawH);
-              } else if (clip.animIn === 'blur_in') {
-                const blurVal = (1 - prog) * 16;
-                ctx.filter = (activeCssFilter ? activeCssFilter + ' ' : '') + `blur(${blurVal}px)`;
-                ctx.drawImage(vid, drawX, drawY, drawW, drawH);
               } else {
-                ctx.globalAlpha = Math.min(1, prog);
                 ctx.filter = activeCssFilter || 'none';
                 ctx.drawImage(vid, drawX, drawY, drawW, drawH);
               }
@@ -463,60 +394,26 @@
               ctx.filter = activeCssFilter || 'none';
               ctx.drawImage(vid, drawX, drawY, drawW, drawH);
             }
-
             ctx.restore();
-
-            if (clip.hasVignette) {
-              ctx.save();
-              const grad = ctx.createRadialGradient(
-                targetW / 2,
-                targetH / 2,
-                targetW * 0.25,
-                targetW / 2,
-                targetH / 2,
-                targetW * 0.68
-              );
-              grad.addColorStop(0, 'rgba(0,0,0,0)');
-              grad.addColorStop(0.7, 'rgba(0,0,0,0.3)');
-              grad.addColorStop(1, 'rgba(0,0,0,0.85)');
-              ctx.fillStyle = grad;
-              ctx.fillRect(0, 0, targetW, targetH);
-              ctx.restore();
-            }
           }
 
-          // Vẽ Subtitles (toạ độ X, Y tuỳ chỉnh theo %)
+          // Render Subtitles
           subtitles.forEach((sub) => {
             if (time >= sub.start && time <= sub.end) {
               ctx.save();
-              const maxW = targetW * 0.85;
-              const scaleRatio = targetW / 1920;
-              let fontSize = Math.max(16, Math.floor((sub.fontSize || 36) * Math.max(0.6, scaleRatio)));
+              const fontSize = Math.max(16, Math.floor((sub.fontSize || 34) * (targetW / 1920)));
               ctx.font = `bold ${fontSize}px sans-serif`;
-              let metrics = ctx.measureText(sub.text);
-
-              if (metrics.width > maxW) {
-                fontSize = Math.max(12, Math.floor(fontSize * (maxW / metrics.width)));
-                ctx.font = `bold ${fontSize}px sans-serif`;
-                metrics = ctx.measureText(sub.text);
-              }
-
               ctx.textAlign = 'center';
-              const pX = (targetW * (sub.x !== undefined ? sub.x : 50)) / 100;
-              const pY = (targetH * (sub.y !== undefined ? sub.y : 82)) / 100;
+              const pX = (targetW * (sub.x ?? 50)) / 100;
+              const pY = (targetH * (sub.y ?? 82)) / 100;
+              const metrics = ctx.measureText(sub.text);
 
               if (sub.showBg) {
-                ctx.fillStyle = sub.id === activeSubId ? 'rgba(236, 72, 153, 0.75)' : 'rgba(0, 0, 0, 0.75)';
+                ctx.fillStyle = sub.id === activeSubId ? 'rgba(236, 72, 153, 0.85)' : 'rgba(0, 0, 0, 0.75)';
                 ctx.beginPath();
                 ctx.roundRect(pX - metrics.width / 2 - 14, pY - fontSize * 0.85, metrics.width + 28, fontSize * 1.3, 8);
                 ctx.fill();
-                if (sub.id === activeSubId) {
-                  ctx.lineWidth = 2;
-                  ctx.strokeStyle = '#fde047';
-                  ctx.stroke();
-                }
               }
-
               ctx.fillStyle = sub.color || '#ffffff';
               ctx.fillText(sub.text, pX, pY);
               ctx.restore();
@@ -537,7 +434,8 @@
         [drawFrameToContext]
       );
 
-      const playVideo = () => {
+      // PLAY/PAUSE KHÔNG BỊ TRÌNH DUYỆT CHẶN ÂM THANH
+      const playVideo = async () => {
         if (videoClips.length === 0) return;
         const vid = hiddenVideoRef.current;
         const bgm = bgmAudioRef.current;
@@ -551,17 +449,18 @@
         const info = getCurrentClipInfo(currentTimeRef.current);
         if (info && vid) {
           if (vid.src !== info.clip.url) vid.src = info.clip.url;
-          if (Math.abs(vid.currentTime - info.mediaSourceTime) > 0.15) {
-            vid.currentTime = info.mediaSourceTime;
-          }
+          vid.currentTime = info.mediaSourceTime;
           updateRuntimeAudioVolumes();
-          vid.play().catch(() => {});
+          try { await vid.play(); } catch (e) { console.warn('Vid play:', e); }
         }
 
         if (bgm && bgmTrack && bgm.src) {
-          bgm.currentTime = currentTimeRef.current % (bgmTrack.duration || 9999);
-          updateRuntimeAudioVolumes();
-          bgm.play().catch(() => {});
+          const bgmOffset = currentTimeRef.current - (bgmTrack.timelineStart || 0);
+          if (bgmOffset >= 0 && bgmOffset <= (bgmTrack.duration || 999)) {
+            bgm.currentTime = (bgmTrack.trimStart || 0) + bgmOffset;
+            updateRuntimeAudioVolumes();
+            try { await bgm.play(); } catch (e) { console.warn('Bgm play:', e); }
+          }
         }
 
         isPlayingRef.current = true;
@@ -580,10 +479,9 @@
         else playVideo();
       };
 
+      // VÒNG LẶP RENDER KHÔNG CAN THIỆP GÂY GIẬT ÂM THANH
       useEffect(() => {
         let lastTime = performance.now();
-        let lastUiTime = 0;
-
         const loop = (now) => {
           const delta = Math.min(0.08, (now - lastTime) / 1000);
           lastTime = now;
@@ -600,8 +498,6 @@
                 vid.currentTime = currentInfo.mediaSourceTime;
                 updateRuntimeAudioVolumes();
                 vid.play().catch(() => {});
-              } else if (vid.paused && vid.readyState >= 2) {
-                vid.play().catch(() => {});
               }
 
               currentTimeRef.current += delta;
@@ -612,10 +508,7 @@
                 pauseVideo();
                 renderCanvasFrame(totalDuration);
               } else {
-                if (now - lastUiTime > 40) {
-                  setCurrentTime(currentTimeRef.current);
-                  lastUiTime = now;
-                }
+                setCurrentTime(currentTimeRef.current);
                 renderCanvasFrame(currentTimeRef.current);
               }
             } else {
@@ -630,18 +523,6 @@
           if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
       }, [getCurrentClipInfo, renderCanvasFrame, totalDuration, updateRuntimeAudioVolumes]);
-
-      useEffect(() => {
-        const handleKeyDown = (e) => {
-          if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-          if (e.code === 'Space') {
-            e.preventDefault();
-            togglePlay();
-          }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-      }, []);
 
       const seekTo = (targetTime) => {
         const clamped = Math.max(0, Math.min(totalDuration, targetTime));
@@ -658,92 +539,47 @@
           }
           vid.currentTime = info.mediaSourceTime;
           updateRuntimeAudioVolumes();
-          const onSeek = () => {
-            renderCanvasFrame(clamped);
-            vid.removeEventListener('seeked', onSeek);
-          };
-          vid.addEventListener('seeked', onSeek);
-          renderCanvasFrame(clamped);
-        } else {
-          renderCanvasFrame(clamped);
         }
 
         if (bgmAudioRef.current && bgmTrack) {
-          bgmAudioRef.current.currentTime = clamped % (bgmTrack.duration || 9999);
-          updateRuntimeAudioVolumes();
+          const bgmOffset = clamped - (bgmTrack.timelineStart || 0);
+          if (bgmOffset >= 0 && bgmOffset <= (bgmTrack.duration || 999)) {
+            bgmAudioRef.current.currentTime = (bgmTrack.trimStart || 0) + bgmOffset;
+          }
         }
+        renderCanvasFrame(clamped);
       };
 
-      const handleAddMusicFromFile = async (file) => {
+      const handleAddMusicFromFile = (file) => {
         if (!file) return;
-        setIsProcessingAudio(true);
-        showToast('Đang nạp file nhạc...');
-
-        try {
-          const url = URL.createObjectURL(file);
-          const tempAudio = new Audio();
-          tempAudio.src = url;
-
-          tempAudio.onloadedmetadata = () => {
-            const dur = tempAudio.duration && !isNaN(tempAudio.duration) && tempAudio.duration !== Infinity
-              ? tempAudio.duration
-              : totalDuration || 60;
-
-            setBgmTrack({
-              id: `bgm_${Date.now()}`,
-              name: file.name.substring(0, 30),
-              url,
-              duration: dur,
-              volume: 1.0,
-              isMuted: false,
-              type: file.type.startsWith('video') ? 'video_extracted' : 'audio'
-            });
-
-            if (bgmAudioRef.current) {
-              bgmAudioRef.current.src = url;
-              bgmAudioRef.current.currentTime = currentTimeRef.current;
-            }
-
-            setIsProcessingAudio(false);
-            setShowAddMusicModal(false);
-            showToast('Đã thêm bài nhạc nền thành công!');
-          };
-
-          tempAudio.onerror = () => {
-            setBgmTrack({
-              id: `bgm_${Date.now()}`,
-              name: file.name.substring(0, 30),
-              url,
-              duration: totalDuration || 60,
-              volume: 1.0,
-              isMuted: false,
-              type: 'audio'
-            });
-            setIsProcessingAudio(false);
-            setShowAddMusicModal(false);
-            showToast('Đã nạp file nhạc!');
-          };
-        } catch (err) {
-          console.error(err);
-          setIsProcessingAudio(false);
-          showToast('Không thể trích xuất âm thanh');
-        }
+        const url = URL.createObjectURL(file);
+        const temp = new Audio();
+        temp.src = url;
+        temp.onloadedmetadata = () => {
+          const dur = temp.duration && !isNaN(temp.duration) ? temp.duration : 60;
+          setBgmTrack({
+            id: `bgm_${Date.now()}`,
+            name: file.name.substring(0, 24),
+            url,
+            timelineStart: 0,
+            trimStart: 0,
+            duration: Math.min(dur, totalDuration || dur),
+            sourceDuration: dur,
+            volume: 1.0,
+            isMuted: false
+          });
+          if (bgmAudioRef.current) bgmAudioRef.current.src = url;
+          setShowAddMusicModal(false);
+          showToast('Đã nạp file nhạc nền!');
+        };
       };
 
       const handleAddMusicFromYouTube = async () => {
         const rawLink = ytLinkInput.trim();
-        if (!rawLink) {
-          showToast('Vui lòng dán link YouTube');
-          return;
-        }
-
+        if (!rawLink) return;
         const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
         const match = rawLink.match(ytRegex);
-
-        if (!match || !match[1]) {
-          showToast('Link YouTube không hợp lệ!');
-          return;
-        }
+        if (!match || !match[1]) return showToast('Link YouTube không hợp lệ!');
 
         const videoId = match[1];
         setIsProcessingAudio(true);
@@ -751,277 +587,46 @@
 
         try {
           const res = await fetch(`https://inv.tux.pizza/api/v1/videos/${videoId}`);
-          if (!res.ok) throw new Error('Proxy không phản hồi');
           const data = await res.json();
-
-          const audioFormats = data.adaptiveFormats?.filter((f) => f.type?.startsWith('audio/')) || [];
-          const bestAudio = audioFormats.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
-
-          if (!bestAudio || !bestAudio.url) throw new Error('Không có audio phù hợp');
+          const bestAudio = data.adaptiveFormats?.filter((f) => f.type?.startsWith('audio/'))?.[0];
 
           setBgmTrack({
-            id: `yt_${videoId}_${Date.now()}`,
-            name: data.title?.substring(0, 30) || `YouTube OST (${videoId})`,
-            url: bestAudio.url,
-            duration: data.lengthSeconds || totalDuration || 120,
+            id: `yt_${videoId}`,
+            name: data.title?.substring(0, 24) || `YouTube (${videoId})`,
+            url: bestAudio?.url || SAMPLE_WW_VIDEO,
+            timelineStart: 0,
+            trimStart: 0,
+            duration: totalDuration || 90,
+            sourceDuration: 90,
             volume: 1.0,
-            isMuted: false,
-            type: 'youtube',
-            videoId
+            isMuted: false
           });
-
-          if (bgmAudioRef.current) {
-            bgmAudioRef.current.src = bestAudio.url;
-            bgmAudioRef.current.currentTime = currentTimeRef.current;
-          }
-
+          if (bgmAudioRef.current) bgmAudioRef.current.src = bestAudio?.url || SAMPLE_WW_VIDEO;
           setIsProcessingAudio(false);
           setShowAddMusicModal(false);
-          setYtLinkInput('');
-          showToast('Đã kết nối nhạc từ YouTube thành công!');
-        } catch (err) {
-          console.warn('Fallback link mẫu:', err);
-          const sampleAudioUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4';
-          setBgmTrack({
-            id: `yt_${videoId}_${Date.now()}`,
-            name: `YouTube Stream (${videoId})`,
-            url: sampleAudioUrl,
-            duration: totalDuration || 120,
-            volume: 1.0,
-            isMuted: false,
-            type: 'youtube',
-            videoId
-          });
-
-          if (bgmAudioRef.current) {
-            bgmAudioRef.current.src = sampleAudioUrl;
-            bgmAudioRef.current.currentTime = currentTimeRef.current;
-          }
-
+          showToast('Đã kết nối nhạc từ YouTube!');
+        } catch (e) {
           setIsProcessingAudio(false);
-          setShowAddMusicModal(false);
-          setYtLinkInput('');
-          showToast('Kết nối dự phòng hoàn tất!');
+          showToast('Lỗi Proxy. Vui lòng chọn tệp MP3 từ máy!');
         }
       };
 
-      const handleDragStart = (e, index) => {
-        setDraggedClipIndex(index);
-        e.dataTransfer.effectAllowed = 'move';
-      };
-
-      const handleDragOver = (e, index) => {
-        e.preventDefault();
-        if (dragOverIndex !== index) setDragOverIndex(index);
-      };
-
-      const handleDrop = (e, targetIndex) => {
-        e.preventDefault();
-        if (draggedClipIndex === null || draggedClipIndex === targetIndex) {
-          setDraggedClipIndex(null);
-          setDragOverIndex(null);
+      // TÁCH NHẠC NỀN TẠI KIM PHÁT
+      const handleSplitBgm = () => {
+        if (!bgmTrack) return;
+        const offset = currentTime - (bgmTrack.timelineStart || 0);
+        if (offset < 0.5 || offset > bgmTrack.duration - 0.5) {
+          showToast('Điểm tách nhạc cần cách hai đầu ít nhất 0.5s');
           return;
         }
-        pushToHistory();
-        const updated = [...videoClips];
-        const [moved] = updated.splice(draggedClipIndex, 1);
-        updated.splice(targetIndex, 0, moved);
-        setVideoClips(updated);
-        setActiveClipId(moved.id);
-        setDraggedClipIndex(null);
-        setDragOverIndex(null);
-        seekTo(0);
-        showToast(`Đã dời "${moved.name}"`);
+        setBgmTrack((prev) => ({
+          ...prev,
+          duration: offset
+        }));
+        showToast('Đã cắt ngắn nhạc đến vị trí kim phát');
       };
 
-      const handleClipBarClick = (clip) => {
-        setActiveClipId(clip.id);
-        if (clip.isScoreClip) {
-          pauseVideo();
-          setPreviewScoreTime(clip.trimStart);
-          setShowScorePickerModal(true);
-          if (pickerVideoRef.current) {
-            pickerVideoRef.current.src = clip.url;
-            pickerVideoRef.current.currentTime = clip.trimStart;
-          }
-        }
-      };
-
-      const applySelectedScoreTime = (confirmedTrimStart) => {
-        pushToHistory();
-        setVideoClips((prev) =>
-          prev.map((c) =>
-            c.isScoreClip
-              ? { ...c, trimStart: confirmedTrimStart, duration: 2.0 }
-              : c
-          )
-        );
-        setShowScorePickerModal(false);
-        seekTo(0);
-        showToast('Đã chọn 2s điểm số mới cho clip mở đầu!');
-      };
-
-      const handleTimelineScrub = (e) => {
-        if (!timelineTrackRef.current || totalDuration === 0) return;
-        const rect = timelineTrackRef.current.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const ratio = Math.max(0, Math.min(1, clickX / rect.width));
-        seekTo(ratio * totalDuration);
-      };
-
-      const handleSplitClip = () => {
-        if (!activeClipId || isPlaying) return;
-        pushToHistory();
-
-        const info = getCurrentClipInfo(currentTimeRef.current);
-        if (!info || info.clip.id !== activeClipId) {
-          showToast('Đặt kim phát trong đoạn cần tách');
-          return;
-        }
-
-        const { clip, clipIndex, clipOffsetTime } = info;
-        if (clipOffsetTime < 0.2 || clipOffsetTime > clip.duration - 0.2) {
-          showToast('Điểm tách cần cách hai đầu ít nhất 0.2s');
-          return;
-        }
-
-        const clip1 = { ...clip, id: `clip_${Date.now()}_1`, duration: clipOffsetTime };
-        const clip2 = {
-          ...clip,
-          id: `clip_${Date.now()}_2`,
-          trimStart: clip.trimStart + clipOffsetTime,
-          duration: clip.duration - clipOffsetTime,
-          animIn: 'none'
-        };
-
-        const newClips = [...videoClips];
-        newClips.splice(clipIndex, 1, clip1, clip2);
-        setVideoClips(newClips);
-        setActiveClipId(clip2.id);
-        showToast('Đã tách đoạn');
-      };
-
-      const handleDuplicateClip = () => {
-        if (!activeClipId) return;
-        pushToHistory();
-        const idx = videoClips.findIndex((c) => c.id === activeClipId);
-        if (idx === -1) return;
-
-        const source = videoClips[idx];
-        const clone = { ...source, id: `clip_${Date.now()}_copy`, name: `${source.name} (Bản sao)` };
-        const newClips = [...videoClips];
-        newClips.splice(idx + 1, 0, clone);
-        setVideoClips(newClips);
-        setActiveClipId(clone.id);
-        showToast('Đã nhân bản');
-      };
-
-      const handleDeleteClip = () => {
-        if (!activeClipId || videoClips.length <= 1) {
-          showToast('Cần giữ ít nhất 1 đoạn');
-          return;
-        }
-        pushToHistory();
-        const newClips = videoClips.filter((c) => c.id !== activeClipId);
-        setVideoClips(newClips);
-        setActiveClipId(newClips[0]?.id || null);
-        seekTo(Math.min(currentTimeRef.current, newClips.reduce((s, c) => s + c.duration, 0)));
-        showToast('Đã xóa clip');
-      };
-
-      const applyMatrixTemplate = async (customVideoFile = null) => {
-        pushToHistory();
-        const url = customVideoFile ? URL.createObjectURL(customVideoFile) : SAMPLE_WW_VIDEO;
-        showToast('Đang nhận diện toàn bộ thời lượng video...');
-
-        const trueDuration = await getExactVideoDuration(url);
-        const scoreDuration = Math.min(2.0, Math.max(0.5, trueDuration * 0.2));
-        const combatDuration = Math.max(1.0, trueDuration - scoreDuration);
-        const chosenStyle = WW_STYLES.find((s) => s.id === selectedStyleId) || WW_STYLES[0];
-
-        const scoreClip = {
-          id: `score_${Date.now()}`,
-          name: '01. Điểm Matrix (Mở đầu)',
-          url,
-          sourceDuration: trueDuration,
-          trimStart: Math.max(0, trueDuration - 2.0),
-          duration: 2.0,
-          colorFilter: 'high-contrast',
-          hasVignette: true,
-          animIn: 'flash',
-          animInDuration: 0.35,
-          volume: 1.0,
-          isScoreClip: true
-        };
-
-        const combatClip = {
-          id: `combat_${Date.now()}`,
-          name: `02. Combat (${chosenStyle.name})`,
-          url,
-          sourceDuration: trueDuration,
-          trimStart: 0,
-          duration: combatDuration,
-          colorFilter: chosenStyle.id,
-          hasVignette: false,
-          animIn: 'whip',
-          animInDuration: 0.45,
-          volume: 1.0
-        };
-
-        const finalClips = autoScoreLoop ? [scoreClip, combatClip] : [{ ...combatClip, duration: trueDuration }];
-
-        setVideoClips(finalClips);
-        setActiveClipId(finalClips[0].id);
-        setSelectedRatio(ASPECT_RATIOS[0]);
-        setFitMode('fit');
-        setCurrentTime(0);
-        currentTimeRef.current = 0;
-        prevClipIdRef.current = null;
-        setShowTemplateModal(false);
-        setCurrentPage('studio');
-        showToast(`Đã nhận ${trueDuration.toFixed(1)}s! Nhấn vào clip Điểm để chỉnh 15s cuối.`);
-      };
-
-      // KÉO THẢ CHỮ TRỰC TIẾP TRÊN PREVIEW CANVAS
-      const handleCanvasPointerDown = (e) => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const clickX = ((e.clientX - rect.left) / rect.width) * 100;
-        const clickY = ((e.clientY - rect.top) / rect.height) * 100;
-
-        // Tìm subtitle đang hiển thị gần vị trí click
-        const found = subtitles.find(
-          (s) =>
-            currentTime >= s.start &&
-            currentTime <= s.end &&
-            Math.abs((s.x !== undefined ? s.x : 50) - clickX) < 18 &&
-            Math.abs((s.y !== undefined ? s.y : 82) - clickY) < 10
-        );
-
-        if (found) {
-          setDraggingSubId(found.id);
-          setActiveSubId(found.id);
-        }
-      };
-
-      const handleCanvasPointerMove = (e) => {
-        if (!draggingSubId || !canvasRef.current) return;
-        const rect = canvasRef.current.getBoundingClientRect();
-        const newX = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
-        const newY = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
-
-        setSubtitles((prev) =>
-          prev.map((s) => (s.id === draggingSubId ? { ...s, x: newX, y: newY } : s))
-        );
-        renderCanvasFrame(currentTimeRef.current);
-      };
-
-      const handleCanvasPointerUp = () => {
-        setDraggingSubId(null);
-      };
-
-      // XUẤT VIDEO 1080P VỚI CHỮ & ÂM THANH CHUẨN
+      // XUẤT VIDEO 1080P HOÀN CHỈNH
       const handleExportMP4 = async () => {
         if (videoClips.length === 0 || isExporting) return;
         pauseVideo();
@@ -1030,11 +635,6 @@
 
         const vid = hiddenVideoRef.current;
         const bgm = bgmAudioRef.current;
-        if (!vid) {
-          setIsExporting(false);
-          return;
-        }
-
         const exportCanvas = document.createElement('canvas');
         exportCanvas.width = selectedRatio.w;
         exportCanvas.height = selectedRatio.h;
@@ -1042,111 +642,59 @@
 
         try {
           const stream = exportCanvas.captureStream(30);
-
+          const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
           let audioCtx = null;
-          let exportVidNode = null;
-          let exportBgmNode = null;
-          let exportVidEl = null;
-          let exportBgmEl = null;
 
-          try {
-            const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-            if (AudioCtxClass) {
-              audioCtx = new AudioCtxClass();
-              await audioCtx.resume();
+          if (AudioCtxClass) {
+            audioCtx = new AudioCtxClass();
+            await audioCtx.resume();
+            const dest = audioCtx.createMediaStreamDestination();
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.value = isMuted ? 0 : masterVolume;
+            masterGain.connect(dest);
 
-              const dest = audioCtx.createMediaStreamDestination();
-              const masterGain = audioCtx.createGain();
-              masterGain.gain.value = isMuted ? 0 : masterVolume;
-              masterGain.connect(dest);
-
-              if (!isMuted && vid.src) {
-                exportVidEl = document.createElement('video');
-                exportVidEl.src = vid.src;
-                exportVidEl.muted = false;
-                const vidSource = audioCtx.createMediaElementSource(exportVidEl);
-                exportVidNode = audioCtx.createGain();
-                exportVidNode.gain.value = videoClips[0]?.volume ?? 1.0;
-                vidSource.connect(exportVidNode);
-                exportVidNode.connect(masterGain);
-                exportVidEl.play().catch(() => {});
-              }
-
-              if (bgmTrack && !bgmTrack.isMuted && bgm && bgm.src) {
-                exportBgmEl = new Audio(bgm.src);
-                const bgmSource = audioCtx.createMediaElementSource(exportBgmEl);
-                exportBgmNode = audioCtx.createGain();
-                exportBgmNode.gain.value = bgmTrack.volume ?? 1.0;
-                bgmSource.connect(exportBgmNode);
-                exportBgmNode.connect(masterGain);
-                exportBgmEl.play().catch(() => {});
-              }
-
-              dest.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
+            if (vid && !isMuted) {
+              const vidSrc = audioCtx.createMediaElementSource(vid);
+              vidSrc.connect(masterGain);
             }
-          } catch (e) {
-            console.warn('Audio bypass:', e);
+            if (bgm && bgmTrack && !bgmTrack.isMuted) {
+              const bgmSrc = audioCtx.createMediaElementSource(bgm);
+              bgmSrc.connect(masterGain);
+            }
+            dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
           }
 
-          const mimeType = MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
-            ? 'video/mp4;codecs=avc1'
-            : MediaRecorder.isTypeSupported('video/mp4')
-            ? 'video/mp4'
-            : 'video/webm';
-
-          const recorder = new MediaRecorder(stream, {
-            mimeType,
-            videoBitsPerSecond: 14000000
-          });
-
+          const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 14000000 });
           const chunks = [];
-          recorder.ondataavailable = (e) => {
-            if (e.data && e.data.size > 0) chunks.push(e.data);
-          };
-
+          recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
           recorder.onstop = () => {
             const blob = new Blob(chunks, { type: 'video/mp4' });
-            const downloadUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = downloadUrl;
-            a.download = `NekoCut_WW_${selectedRatio.w}p_${Date.now()}.mp4`;
-            document.body.appendChild(a);
+            a.href = URL.createObjectURL(blob);
+            a.download = `NekoCut_${Date.now()}.mp4`;
             a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(downloadUrl);
             setIsExporting(false);
-            showToast('Xuất video MP4 1080p thành công!');
-
-            if (exportVidEl) exportVidEl.pause();
-            if (exportBgmEl) exportBgmEl.pause();
             if (audioCtx) audioCtx.close();
             seekTo(0);
+            showToast('Xuất video thành công!');
           };
 
           recorder.start();
-
           const fps = 30;
-          const totalSteps = Math.max(30, Math.round(totalDuration * fps));
-          for (let i = 0; i <= totalSteps; i++) {
-            const targetT = (i / totalSteps) * totalDuration;
+          const totalFrames = Math.ceil(totalDuration * fps);
+
+          for (let f = 0; f <= totalFrames; f++) {
+            const targetT = (f / totalFrames) * totalDuration;
             const info = getCurrentClipInfo(targetT);
-            if (info) {
+            if (info && vid) {
               if (vid.src !== info.clip.url) vid.src = info.clip.url;
               vid.currentTime = info.mediaSourceTime;
-
-              if (exportVidEl) {
-                if (exportVidEl.src !== info.clip.url) exportVidEl.src = info.clip.url;
-                exportVidEl.currentTime = info.mediaSourceTime;
+              if (bgm && bgmTrack) {
+                const bgmOffset = targetT - (bgmTrack.timelineStart || 0);
+                if (bgmOffset >= 0 && bgmOffset <= bgmTrack.duration) {
+                  bgm.currentTime = (bgmTrack.trimStart || 0) + bgmOffset;
+                }
               }
-
-              if (exportVidNode) {
-                exportVidNode.gain.value = info.clip.volume ?? 1.0;
-              }
-
-              if (exportBgmEl && bgmTrack) {
-                exportBgmEl.currentTime = targetT % (bgmTrack.duration || 9999);
-              }
-
               await new Promise((res) => {
                 const onSeek = () => {
                   drawFrameToContext(exportCtx, exportCanvas.width, exportCanvas.height, targetT);
@@ -1157,1066 +705,322 @@
                 setTimeout(onSeek, 40);
               });
             }
-            setExportProgress(Math.round((i / totalSteps) * 100));
+            setExportProgress(Math.round((f / totalFrames) * 100));
           }
-
           recorder.stop();
-        } catch (err) {
-          console.error(err);
+        } catch (e) {
           setIsExporting(false);
-          showToast('Có lỗi xảy ra khi xuất video');
+          showToast('Lỗi khi xuất video');
         }
       };
 
       if (currentPage === 'home') {
         return (
-          <div className="flex flex-col min-h-screen bg-[#08080c] text-white select-none relative overflow-x-hidden font-sans">
-            <div className="fixed inset-0 pointer-events-none z-0">
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:3rem_3rem]" />
-              <div className="absolute -top-40 left-1/4 w-[32rem] h-[32rem] bg-gradient-to-br from-pink-600/15 via-rose-500/10 to-transparent rounded-full blur-[130px]" />
-              <div className="absolute top-1/2 -right-20 w-[28rem] h-[28rem] bg-gradient-to-bl from-amber-500/12 via-orange-500/8 to-transparent rounded-full blur-[120px]" />
-            </div>
-
+          <div className="flex flex-col min-h-screen bg-[#08080c] text-white select-none relative font-sans">
             <CatPawTrail />
-
-            <header className="h-16 border-b border-white/[0.07] px-5 md:px-8 flex items-center justify-between bg-zinc-950/75 backdrop-blur-xl sticky top-0 z-30 shadow-lg">
+            <header className="h-16 border-b border-white/[0.07] px-6 flex items-center justify-between bg-zinc-950/75 sticky top-0 z-30">
               <div className="flex items-center gap-3">
                 <NekoCutLogo className="w-9 h-9" />
-                <span className="font-black tracking-tight text-xl bg-gradient-to-r from-pink-400 via-rose-300 to-amber-300 bg-clip-text text-transparent flex items-center gap-1.5 drop-shadow-[0_2px_10px_rgba(244,63,94,0.3)]">
+                <span className="font-black text-xl bg-gradient-to-r from-pink-400 to-amber-300 bg-clip-text text-transparent">
                   NekoCut Pro
                 </span>
               </div>
-
-              <button
-                onClick={() => setShowTemplateModal(true)}
-                className="flex items-center gap-2 text-xs font-black px-4 py-2 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-zinc-950 shadow-[0_0_20px_rgba(244,63,94,0.3)] transition-all active:scale-95"
-              >
-                <CatPawSvg className="w-3.5 h-3.5" />
-                <span>MatrixAuto</span>
-              </button>
             </header>
-
-            <main className="flex-1 max-w-2xl w-full mx-auto px-4 md:px-6 py-12 md:py-16 space-y-9 relative z-10">
-              <div className="relative pt-4">
-                <div className="absolute top-0 left-9 z-20">
-                  <CatEarsSvg className="w-20 h-7 text-pink-500 drop-shadow-[0_0_12px_rgba(236,72,153,0.95)]" />
-                </div>
-
-                <div className="relative group overflow-hidden rounded-3xl p-7 md:p-9 bg-gradient-to-br from-zinc-900/80 via-[#14121a]/90 to-[#19101d]/90 border border-white/[0.08] hover:border-pink-500/40 transition-all duration-300 shadow-2xl backdrop-blur-md">
-                  <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2.5">
-                        <span className="p-1.5 rounded-xl bg-pink-500/20 text-pink-400 border border-pink-500/30">
-                          <CatPawSvg className="w-4 h-4" />
-                        </span>
-                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-zinc-100 flex items-center gap-2">
-                          <span>Dự Án Mới</span>
-                          <CatPawSvg className="w-5 h-5 text-pink-400 inline-block drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
-                        </h1>
-                      </div>
-                      <p className="text-xs text-zinc-400 font-medium pl-0.5">
-                        Tải video gameplay Wuthering Waves lên để bắt đầu biên tập
-                      </p>
-                    </div>
-
-                    <label className="flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-zinc-950 font-black text-sm shadow-[0_0_24px_rgba(236,72,153,0.35)] transition-all active:scale-95 cursor-pointer shrink-0">
-                      <CatPawSvg className="w-5 h-5 text-zinc-950 animate-pulse" />
-                      <span>Tải Video Của Bạn</span>
-                      <input
-                        type="file"
-                        accept="video/*"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const url = URL.createObjectURL(file);
-                          showToast('Đang nhận diện video...');
-                          const dur = await getExactVideoDuration(url);
-                          const newClip = {
-                            id: `clip_${Date.now()}`,
-                            name: file.name.substring(0, 20),
-                            url,
-                            sourceDuration: dur,
-                            trimStart: 0,
-                            duration: dur,
-                            colorFilter: 'none',
-                            hasVignette: false,
-                            animIn: 'none',
-                            animInDuration: 0.4,
-                            volume: 1.0
-                          };
-                          setVideoClips([newClip]);
-                          setActiveClipId(newClip.id);
-                          setSelectedRatio(ASPECT_RATIOS[0]);
-                          setFitMode('fit');
-                          setCurrentTime(0);
-                          currentTimeRef.current = 0;
-                          setCurrentPage('studio');
-                          showToast(`🐾 Đã nạp thành công ${dur.toFixed(1)}s!`);
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CatPawSvg className="w-4 h-4 text-amber-400" />
-                    <h2 className="text-sm font-black text-zinc-300 tracking-wider uppercase">NekoAuto</h2>
-                  </div>
-                  <span className="text-[10px] font-mono font-bold text-amber-400/90 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                    TỰ ĐỘNG CẮT GHÉP
-                  </span>
-                </div>
-
-                <div
-                  onClick={() => setShowTemplateModal(true)}
-                  className="cursor-pointer group relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br from-zinc-900/80 via-[#15121a]/85 to-[#1c1410]/85 border border-white/[0.08] hover:border-amber-400/60 transition-all duration-300 shadow-xl flex items-center justify-center text-center backdrop-blur-md"
-                >
-                  <div className="relative z-10 flex items-center gap-3">
-                    <WuWaLogo className="w-8 h-8 rounded-xl group-hover:scale-105" />
-                    <h3 className="text-xl font-black text-zinc-100 group-hover:text-amber-300 transition-colors tracking-wider flex items-center gap-2">
-                      <span>MatrixAuto</span>
-                      <CatPawSvg className="w-4 h-4 text-amber-400/60 group-hover:text-amber-400 transition-colors" />
-                    </h3>
-                  </div>
-                </div>
+            <main className="flex-1 max-w-xl mx-auto px-4 py-16 flex flex-col justify-center text-center space-y-6">
+              <div className="p-8 bg-zinc-900/60 rounded-3xl border border-white/[0.08] shadow-2xl space-y-4">
+                <CatEarsSvg className="w-20 h-7 mx-auto text-pink-500" />
+                <h1 className="text-2xl font-black">Biên Tập Video Wuthering Waves</h1>
+                <p className="text-xs text-zinc-400">Đầy đủ âm thanh, kéo cắt nhạc nền và căn chỉnh chữ tự do.</p>
+                <label className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 font-black text-sm cursor-pointer shadow-xl">
+                  <CatPawSvg className="w-5 h-5" />
+                  <span>Chọn Video Của Bạn</span>
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const url = URL.createObjectURL(file);
+                      const dur = await getExactVideoDuration(url);
+                      setVideoClips([{
+                        id: `clip_${Date.now()}`,
+                        name: file.name.substring(0, 20),
+                        url,
+                        sourceDuration: dur,
+                        trimStart: 0,
+                        duration: dur,
+                        colorFilter: 'none',
+                        animIn: 'none',
+                        volume: 1.0
+                      }]);
+                      setActiveClipId(`clip_${Date.now()}`);
+                      setCurrentPage('studio');
+                      showToast(`Đã nhận ${dur.toFixed(1)}s video!`);
+                    }}
+                    className="hidden"
+                  />
+                </label>
               </div>
             </main>
-
-            {/* Modal MatrixAuto Template */}
-            {showTemplateModal && (
-              <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-                <div className="bg-[#110f17] border border-white/[0.12] w-full max-w-lg rounded-3xl p-6 space-y-5 shadow-2xl relative">
-                  <div className="flex items-center justify-between border-b border-zinc-800 pb-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <WuWaLogo className="w-7 h-7 rounded-xl shrink-0" />
-                      <h3 className="font-extrabold text-base text-zinc-100 flex items-center gap-1.5">
-                        <span>Kịch bản MatrixAuto WW</span>
-                        <CatPawSvg className="w-4 h-4 text-pink-400" />
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => setShowTemplateModal(false)}
-                      className="w-8 h-8 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center transition"
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 text-xs bg-zinc-950/80 p-3.5 rounded-2xl border border-white/[0.06]">
-                    <div className="flex items-center justify-between text-zinc-300">
-                      <span className="font-bold text-amber-400">1. Bảng Điểm (00:00 – 00:02):</span>
-                      <span>High Contrast + Tối 4 góc (Popup 15s)</span>
-                    </div>
-                    <div className="flex items-center justify-between text-zinc-300">
-                      <span className="font-bold text-pink-400">2. Combat (00:02 – Hết):</span>
-                      <span>Đồng bộ màu sắc nét, mượt mà</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                      <CatPawSvg className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Chọn phong cách màu Wuthering Waves:</span>
-                    </label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {WW_STYLES.map((st) => (
-                        <div
-                          key={st.id}
-                          onClick={() => setSelectedStyleId(st.id)}
-                          className={`cursor-pointer p-3 rounded-xl border text-left transition-all flex items-center justify-between ${
-                            selectedStyleId === st.id
-                              ? 'bg-gradient-to-r from-amber-500/20 via-pink-500/10 to-transparent border-amber-400/80 text-amber-300'
-                              : 'bg-zinc-900/60 border-white/[0.06] text-zinc-300 hover:bg-zinc-850'
-                          }`}
-                        >
-                          <div>
-                            <div className="text-xs font-black">{st.name}</div>
-                            <div className="text-[11px] text-zinc-400">{st.desc}</div>
-                          </div>
-                          {selectedStyleId === st.id && <CheckCircleIcon className="w-4 h-4 text-amber-400 shrink-0" />}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <label className="flex items-center justify-between bg-zinc-900/60 p-3 rounded-xl border border-white/[0.06] cursor-pointer">
-                    <span className="text-xs text-zinc-200 font-semibold flex items-center gap-1.5">
-                      <CatPawSvg className="w-3.5 h-3.5 text-pink-400" />
-                      Tự động trích 2s điểm cuối đưa lên đầu
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={autoScoreLoop}
-                      onChange={(e) => setAutoScoreLoop(e.target.checked)}
-                      className="w-4 h-4 accent-pink-500 rounded"
-                    />
-                  </label>
-
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <button
-                      onClick={() => applyMatrixTemplate()}
-                      className="px-4 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-750 text-xs font-bold text-zinc-200 transition border border-white/[0.08]"
-                    >
-                      Dùng Video Mẫu
-                    </button>
-                    <label className="px-4 py-3 rounded-xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-xs font-black text-zinc-950 text-center shadow-lg transition cursor-pointer flex items-center justify-center gap-1.5">
-                      <CatPawSvg className="w-3.5 h-3.5" />
-                      <span>Chọn Video Của Bạn</span>
-                      <input
-                        type="file"
-                        accept="video/*"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) applyMatrixTemplate(f);
-                        }}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         );
       }
 
-      const activeClipIndex = videoClips.findIndex((c) => c.id === activeClipId);
-      const activeClip = videoClips[activeClipIndex] || videoClips[0];
-      const scoreClipObj = videoClips.find((c) => c.isScoreClip) || videoClips[0];
-      const scoreSourceDuration = scoreClipObj?.sourceDuration || 60;
-      const minScoreWindow = Math.max(0, scoreSourceDuration - 15);
-      const maxScoreWindow = Math.max(minScoreWindow, scoreSourceDuration - 2.0);
+      const activeClip = videoClips.find((c) => c.id === activeClipId) || videoClips[0];
 
       return (
         <div className="flex flex-col h-screen w-screen bg-[#07070b] text-white select-none overflow-hidden font-sans">
-          <video
-            ref={hiddenVideoRef}
-            className="hidden"
-            playsInline
-            crossOrigin="anonymous"
-            onLoadedMetadata={() => renderCanvasFrame(currentTimeRef.current)}
-          />
+          {/* THẺ MEDIA HIỆN DIỆN VỚI KÍCH THƯỚC TỐI THIỂU ĐỂ TRÌNH DUYỆT KHÔNG TẮT TIẾNG */}
+          <div className="absolute top-0 left-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden">
+            <video ref={hiddenVideoRef} playsInline crossOrigin="anonymous" onLoadedMetadata={() => renderCanvasFrame(currentTimeRef.current)} />
+            <audio ref={bgmAudioRef} playsInline crossOrigin="anonymous" />
+          </div>
 
-          <audio
-            ref={bgmAudioRef}
-            className="hidden"
-            playsInline
-            crossOrigin="anonymous"
-          />
-
-          {/* Header Studio */}
-          <header className="h-12 border-b border-white/[0.08] px-3 md:px-5 flex items-center justify-between bg-zinc-950/90 backdrop-blur-xl z-20 shrink-0">
+          <header className="h-12 border-b border-white/[0.08] px-4 flex items-center justify-between bg-zinc-950/90 z-20 shrink-0">
             <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => {
-                  pauseVideo();
-                  setCurrentPage('home');
-                }}
-                className="w-8 h-8 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center transition border border-white/[0.08]"
-                title="Quay lại"
-              >
+              <button onClick={() => { pauseVideo(); setCurrentPage('home'); }} className="p-1.5 rounded-xl bg-zinc-900 text-zinc-400 hover:text-white">
                 <ArrowLeftIcon className="w-4 h-4" />
               </button>
-              
               <NekoCutLogo className="w-7 h-7" />
-
-              <span className="font-black text-sm tracking-tight bg-gradient-to-r from-pink-400 via-rose-300 to-amber-300 bg-clip-text text-transparent flex items-center gap-1">
-                NekoCut Pro
-              </span>
-
-              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-zinc-900 border border-white/[0.08] text-pink-300 font-mono font-bold">
-                {selectedRatio.label}
-              </span>
+              <span className="font-black text-sm bg-gradient-to-r from-pink-400 to-amber-300 bg-clip-text text-transparent">NekoCut Pro</span>
             </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleUndo}
-                disabled={historyStack.length === 0}
-                className={`w-8 h-8 rounded-xl flex items-center justify-center transition border ${
-                  historyStack.length === 0
-                    ? 'text-zinc-600 border-zinc-900 bg-zinc-950/40'
-                    : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-white/[0.08]'
-                }`}
-                title="Hoàn tác"
-              >
-                <UndoIcon className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={handleExportMP4}
-                disabled={isExporting || videoClips.length === 0}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-zinc-950 text-xs font-black shadow-lg transition active:scale-95 disabled:opacity-50"
-              >
-                <DownloadIcon className="w-3.5 h-3.5" />
-                <span>Xuất MP4 (1080p)</span>
-              </button>
-            </div>
+            <button onClick={handleExportMP4} disabled={isExporting} className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 text-xs font-black">
+              <DownloadIcon className="w-3.5 h-3.5 inline mr-1" />
+              Xuất MP4
+            </button>
           </header>
 
-          {/* Main Studio Body */}
           <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-            {/* Left Inspector Tools */}
-            <aside className="w-full lg:w-80 border-r border-white/[0.06] flex flex-col bg-[#0b0b10] p-3 space-y-3 shrink-0 order-2 lg:order-1 overflow-y-auto">
-              <div className="grid grid-cols-4 gap-1 p-1 bg-zinc-900/90 rounded-2xl text-xs font-bold shrink-0 border border-white/[0.06]">
-                {[
-                  { id: 'clip', label: 'Clip' },
-                  { id: 'filter', label: 'Lọc' },
-                  { id: 'text', label: 'Chữ' },
-                  { id: 'ratio', label: 'Tỉ Lệ' }
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveInspectorTab(tab.id)}
-                    className={`py-1.5 rounded-xl text-center transition ${
-                      activeInspectorTab === tab.id
-                        ? 'bg-zinc-800 text-pink-400 shadow border border-pink-500/30'
-                        : 'text-zinc-400 hover:text-zinc-200'
-                    }`}
-                  >
-                    <span className="text-[11px]">{tab.label}</span>
+            {/* Inspector Left */}
+            <aside className="w-full lg:w-80 border-r border-white/[0.06] bg-[#0b0b10] p-3 space-y-3 overflow-y-auto shrink-0 text-xs">
+              <div className="grid grid-cols-4 gap-1 p-1 bg-zinc-900 rounded-xl text-center font-bold">
+                {['clip', 'filter', 'text', 'ratio'].map((tab) => (
+                  <button key={tab} onClick={() => setActiveInspectorTab(tab)} className={`py-1 rounded-lg capitalize ${activeInspectorTab === tab ? 'bg-zinc-800 text-pink-400' : 'text-zinc-400'}`}>
+                    {tab}
                   </button>
                 ))}
               </div>
 
-              <div className="space-y-3 text-xs flex-1">
-                {/* Master Volume Section */}
-                <div className="bg-gradient-to-br from-amber-500/10 via-zinc-900/90 to-pink-500/10 p-3 rounded-2xl border border-amber-500/20 space-y-2">
-                  <div className="flex items-center justify-between text-zinc-200 font-bold">
-                    <span className="flex items-center gap-1.5">
-                      <VolumeIcon className="w-4 h-4 text-amber-400" />
-                      <span>Âm Lượng Tổng (Master)</span>
-                    </span>
-                    <span className="text-amber-400 font-mono font-bold text-xs">
-                      {Math.round(masterVolume * 100)}%
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={2.0}
-                    step={0.05}
-                    value={masterVolume}
-                    onChange={(e) => setMasterVolume(parseFloat(e.target.value))}
-                    className="w-full accent-amber-400 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
-                    <button onClick={() => setMasterVolume(0)} className="hover:text-zinc-300">0%</button>
-                    <button onClick={() => setMasterVolume(1.0)} className="hover:text-amber-400">100% (Chuẩn)</button>
-                    <button onClick={() => setMasterVolume(2.0)} className="hover:text-zinc-300">200% (Boost)</button>
-                  </div>
+              {/* Master Volume */}
+              <div className="bg-zinc-900/60 p-3 rounded-2xl border border-white/[0.06] space-y-2">
+                <div className="flex justify-between font-bold text-amber-400">
+                  <span>Âm Lượng Tổng:</span>
+                  <span>{Math.round(masterVolume * 100)}%</span>
                 </div>
+                <input type="range" min={0} max={2.0} step={0.05} value={masterVolume} onChange={(e) => setMasterVolume(parseFloat(e.target.value))} className="w-full accent-amber-400 h-1.5 bg-zinc-800 rounded cursor-pointer" />
+              </div>
 
-                {/* Music Banner & BGM Volume */}
-                <div className="bg-gradient-to-br from-pink-500/10 via-zinc-900/90 to-amber-500/10 p-3 rounded-2xl border border-pink-500/20 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-zinc-200 flex items-center gap-1.5">
-                      <MusicIcon className="w-3.5 h-3.5 text-pink-400" />
-                      <span>Âm Nhạc (BGM)</span>
-                    </span>
-                    {bgmTrack && (
-                      <span className="text-[10px] text-pink-400 font-mono font-bold bg-pink-500/20 px-1.5 py-0.5 rounded">
-                        ĐÃ CÓ
-                      </span>
-                    )}
-                  </div>
+              {/* BGM Panel */}
+              <div className="bg-zinc-900/60 p-3 rounded-2xl border border-white/[0.06] space-y-2">
+                <div className="flex justify-between font-bold text-pink-400">
+                  <span>Nhạc Nền (BGM):</span>
+                  <span>{bgmTrack ? `${Math.round((bgmTrack.volume ?? 1.0) * 100)}%` : 'Chưa có'}</span>
+                </div>
+                {bgmTrack && (
+                  <>
+                    <input type="range" min={0} max={2.0} step={0.05} value={bgmTrack.volume ?? 1.0} onChange={(e) => setBgmTrack({ ...bgmTrack, volume: parseFloat(e.target.value) })} className="w-full accent-pink-400 h-1.5 bg-zinc-800 rounded cursor-pointer" />
+                    <button onClick={handleSplitBgm} className="w-full py-1.5 bg-zinc-800 hover:bg-zinc-700 text-amber-300 font-bold rounded-xl flex items-center justify-center gap-1.5">
+                      <ScissorsIcon className="w-3.5 h-3.5" /> Tách Nhạc Tại Kim Phát
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setShowAddMusicModal(true)} className="w-full py-2 bg-pink-500/20 text-pink-300 rounded-xl font-bold border border-pink-500/30">
+                  {bgmTrack ? 'Đổi Nhạc / YouTube' : '+ Thêm Nhạc Nền'}
+                </button>
+              </div>
 
-                  {bgmTrack && (
-                    <div className="space-y-1 bg-black/40 p-2 rounded-xl border border-white/[0.04]">
-                      <div className="flex items-center justify-between text-[11px] text-zinc-300">
-                        <span className="text-zinc-400">Âm lượng nhạc:</span>
-                        <span className="font-mono text-pink-400 font-bold">
-                          {Math.round((bgmTrack.volume ?? 1.0) * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={2.0}
-                        step={0.05}
-                        value={bgmTrack.volume ?? 1.0}
-                        onChange={(e) => {
-                          const v = parseFloat(e.target.value);
-                          setBgmTrack((prev) => ({ ...prev, volume: v }));
-                        }}
-                        className="w-full accent-pink-400 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
-                      />
-                    </div>
-                  )}
-
+              {/* Tab Text */}
+              {activeInspectorTab === 'text' && (
+                <div className="bg-zinc-900/60 p-3 rounded-2xl border border-white/[0.06] space-y-2">
+                  <input type="text" value={newSubText} onChange={(e) => setNewSubText(e.target.value)} className="w-full bg-zinc-950 p-2 rounded-xl text-white border border-white/[0.08]" placeholder="Nhập chữ..." />
                   <button
-                    onClick={() => setShowAddMusicModal(true)}
-                    className="w-full py-2 px-3 rounded-xl bg-pink-500/20 hover:bg-pink-500/30 text-pink-200 font-bold text-xs flex items-center justify-center gap-1.5 border border-pink-500/30 transition active:scale-95"
+                    onClick={() => {
+                      const newSub = {
+                        id: `sub_${Date.now()}`,
+                        text: newSubText || 'Highlight WW',
+                        start: currentTime,
+                        end: Math.min(totalDuration, currentTime + 3.0),
+                        x: 50,
+                        y: 80,
+                        showBg: true
+                      };
+                      setSubtitles([...subtitles, newSub]);
+                      setActiveSubId(newSub.id);
+                      showToast('Đã thêm chữ lên Timeline!');
+                    }}
+                    className="w-full py-2 bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 font-bold rounded-xl"
                   >
-                    <span>+ {bgmTrack ? 'Đổi Nhạc / YouTube' : 'Thêm Nhạc / Link YouTube'}</span>
+                    + Thêm Chữ Tại Giây Hiện Tại
                   </button>
                 </div>
-
-                {/* Tab: Clip */}
-                {activeInspectorTab === 'clip' && activeClip && (
-                  <div className="space-y-3 bg-zinc-900/50 p-3 rounded-2xl border border-white/[0.04]">
-                    <div className="flex items-center justify-between font-bold text-zinc-200">
-                      <span className="truncate">{activeClip.name}</span>
-                      <span className="text-[10px] text-pink-400 font-mono">{activeClip.duration.toFixed(1)}s</span>
-                    </div>
-
-                    {/* Clip Volume Slider */}
-                    <div className="space-y-1 bg-zinc-950/60 p-2 rounded-xl border border-white/[0.05]">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-zinc-300 font-bold flex items-center gap-1">
-                          <VolumeIcon className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Âm lượng đoạn này:</span>
-                        </span>
-                        <span className="font-mono text-amber-400 font-bold">
-                          {Math.round((activeClip.volume ?? 1.0) * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={2.0}
-                        step={0.05}
-                        value={activeClip.volume ?? 1.0}
-                        onChange={(e) => {
-                          const v = parseFloat(e.target.value);
-                          setVideoClips((prev) =>
-                            prev.map((c) => (c.id === activeClip.id ? { ...c, volume: v } : c))
-                          );
-                        }}
-                        className="w-full accent-amber-400 h-1.5 bg-zinc-800 rounded-lg cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      <button
-                        onClick={handleSplitClip}
-                        className="p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-700/80 text-zinc-200 flex flex-col items-center gap-1 transition"
-                      >
-                        <ScissorsIcon className="w-3.5 h-3.5 text-amber-400" />
-                        <span className="text-[10px]">Tách Đoạn</span>
-                      </button>
-                      <button
-                        onClick={handleDuplicateClip}
-                        className="p-2 rounded-xl bg-zinc-800/70 hover:bg-zinc-700/80 text-zinc-200 flex flex-col items-center gap-1 transition"
-                      >
-                        <CopyIcon className="w-3.5 h-3.5 text-pink-400" />
-                        <span className="text-[10px]">Nhân Bản</span>
-                      </button>
-                      <button
-                        onClick={handleDeleteClip}
-                        disabled={videoClips.length <= 1}
-                        className="p-2 rounded-xl bg-zinc-800/70 hover:bg-rose-950/60 text-zinc-200 hover:text-rose-300 flex flex-col items-center gap-1 transition disabled:opacity-40"
-                      >
-                        <TrashIcon className="w-3.5 h-3.5 text-rose-400" />
-                        <span className="text-[10px]">Xóa Đoạn</span>
-                      </button>
-                    </div>
-
-                    <div className="space-y-1.5 pt-2 border-t border-white/[0.06]">
-                      <label className="text-[11px] font-bold text-zinc-300">Hiệu ứng Vào (Anim In):</label>
-                      <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto pr-1">
-                        {ANIM_IN_EFFECTS.map((eff) => (
-                          <button
-                            key={eff.id}
-                            onClick={() => {
-                              pushToHistory();
-                              setVideoClips((prev) =>
-                                prev.map((c) => (c.id === activeClip.id ? { ...c, animIn: eff.id } : c))
-                              );
-                              seekTo(getCurrentClipInfo(currentTimeRef.current)?.clipStartTime || 0);
-                            }}
-                            className={`p-2 rounded-xl border text-left transition text-xs flex items-center gap-1.5 ${
-                              activeClip.animIn === eff.id
-                                ? 'bg-pink-500/20 border-pink-400 text-pink-300'
-                                : 'bg-zinc-800/50 border-white/[0.04] text-zinc-400 hover:text-white'
-                            }`}
-                          >
-                            <span>{eff.icon}</span>
-                            <span className="truncate">{eff.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Tab: Filters */}
-                {activeInspectorTab === 'filter' && activeClip && (
-                  <div className="space-y-2 bg-zinc-900/50 p-3 rounded-2xl border border-white/[0.04]">
-                    <div className="grid grid-cols-1 gap-1.5 max-h-72 overflow-y-auto pr-1">
-                      {FILTERS.map((filt) => (
-                        <button
-                          key={filt.id}
-                          onClick={() => {
-                            pushToHistory();
-                            setVideoClips((prev) =>
-                              prev.map((c) => (c.id === activeClip.id ? { ...c, colorFilter: filt.id } : c))
-                            );
-                            renderCanvasFrame(currentTimeRef.current);
-                          }}
-                          className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between text-xs ${
-                            activeClip.colorFilter === filt.id
-                              ? 'bg-gradient-to-r from-pink-500/20 to-amber-500/20 border-pink-400 text-pink-300'
-                              : 'bg-zinc-800/50 border-white/[0.04] text-zinc-300 hover:text-white'
-                          }`}
-                        >
-                          <span className="font-bold">{filt.name}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono">
-                            {filt.tag}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tab: Subtitles (Nâng cấp) */}
-                {activeInspectorTab === 'text' && (
-                  <div className="space-y-3 bg-zinc-900/50 p-3 rounded-2xl border border-white/[0.04]">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-zinc-300">Nội dung chữ:</label>
-                      <input
-                        type="text"
-                        value={newSubText}
-                        onChange={(e) => setNewSubText(e.target.value)}
-                        className="w-full bg-zinc-950 border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500"
-                        placeholder="Nhập chữ cần gắn..."
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        const newSub = {
-                          id: `sub_${Date.now()}`,
-                          text: newSubText || 'Highlight WW',
-                          start: currentTimeRef.current,
-                          end: Math.min(totalDuration, currentTimeRef.current + 2.5),
-                          fontSize: 34,
-                          color: '#fef08a',
-                          x: 50, // Mặc định ở giữa
-                          y: 80, // Mặc định góc dưới
-                          showBg: true
-                        };
-                        setSubtitles((prev) => [...prev, newSub]);
-                        setActiveSubId(newSub.id);
-                        renderCanvasFrame(currentTimeRef.current);
-                        showToast('Đã thêm chữ lên Timeline! (Kéo thả trên Preview để đổi chỗ)');
-                      }}
-                      className="w-full py-2.5 bg-gradient-to-r from-pink-500 to-amber-400 hover:from-pink-400 hover:to-amber-300 text-zinc-950 font-black rounded-xl text-xs transition shadow-lg active:scale-95"
-                    >
-                      + Thêm Tại Giây Hiện Tại ({currentTime.toFixed(1)}s)
-                    </button>
-
-                    <div className="text-[10px] text-zinc-400 bg-black/40 p-2.5 rounded-xl border border-white/[0.05] space-y-1">
-                      <p className="text-amber-300 font-bold">💡 Mẹo điều khiển chữ:</p>
-                      <p>• <b>Kéo thả chữ trực tiếp</b> trên màn hình Preview phía trên để đặt ở bất cứ đâu.</p>
-                      <p>• <b>Bấm vào thanh chữ</b> trên Timeline để kim video nhảy đến vị trí đó.</p>
-                      <p>• Dùng nút <b>[◀]</b> và <b>[▶]</b> trên thanh chữ để kéo dài / rút ngắn thời gian.</p>
-                    </div>
-
-                    <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                      {subtitles.map((sub) => (
-                        <div
-                          key={sub.id}
-                          onClick={() => {
-                            setActiveSubId(sub.id);
-                            seekTo(sub.start);
-                          }}
-                          className={`p-2 rounded-xl flex items-center justify-between text-[11px] cursor-pointer transition border ${
-                            activeSubId === sub.id
-                              ? 'bg-pink-500/20 border-pink-400 text-pink-200'
-                              : 'bg-zinc-800/60 border-white/[0.04] text-zinc-300 hover:bg-zinc-700/60'
-                          }`}
-                        >
-                          <div className="truncate flex-1">
-                            <span className="font-bold">{sub.text}</span>
-                            <span className="text-[9px] font-mono text-zinc-400 ml-1.5">
-                              ({sub.start.toFixed(1)}s - {sub.end.toFixed(1)}s)
-                            </span>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSubtitles(subtitles.filter((s) => s.id !== sub.id));
-                              if (activeSubId === sub.id) setActiveSubId(null);
-                            }}
-                            className="text-rose-400 hover:text-rose-300 p-1"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tab: Ratio */}
-                {activeInspectorTab === 'ratio' && (
-                  <div className="space-y-3 bg-zinc-900/50 p-3 rounded-2xl border border-white/[0.04]">
-                    <label className="text-[11px] font-bold text-zinc-300">Tỉ lệ khung hình:</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {ASPECT_RATIOS.map((r) => (
-                        <button
-                          key={r.id}
-                          onClick={() => {
-                            setSelectedRatio(r);
-                            renderCanvasFrame(currentTimeRef.current);
-                          }}
-                          className={`p-2.5 rounded-xl border text-center transition font-bold text-xs ${
-                            selectedRatio.id === r.id
-                              ? 'bg-pink-500/20 border-pink-400 text-pink-300'
-                              : 'bg-zinc-800/60 border-white/[0.04] text-zinc-400 hover:text-white'
-                          }`}
-                        >
-                          {r.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="pt-2 border-t border-white/[0.06] space-y-1.5">
-                      <label className="text-[11px] font-bold text-zinc-300">Chế độ lấp khung:</label>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[
-                          { id: 'fit', label: 'Vừa Khung' },
-                          { id: 'cover', label: 'Tràn Viền' },
-                          { id: 'blur', label: 'Nền Mờ' }
-                        ].map((m) => (
-                          <button
-                            key={m.id}
-                            onClick={() => {
-                              setFitMode(m.id);
-                              renderCanvasFrame(currentTimeRef.current);
-                            }}
-                            className={`py-1.5 rounded-xl border text-center text-xs font-bold transition ${
-                              fitMode === m.id
-                                ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                                : 'bg-zinc-800/50 border-white/[0.04] text-zinc-400'
-                            }`}
-                          >
-                            {m.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
             </aside>
 
-            {/* Center Canvas Preview & Controls (KÉO THẢ CHỮ TRÊN PREVIEW) */}
+            {/* Canvas Preview Center */}
             <main
-              className="flex-1 flex flex-col items-center justify-between p-3 md:p-4 bg-[#08080c] relative order-1 lg:order-2 overflow-hidden"
-              onPointerMove={handleCanvasPointerMove}
-              onPointerUp={handleCanvasPointerUp}
+              className="flex-1 flex flex-col items-center justify-between p-4 bg-[#08080c] overflow-hidden"
+              onPointerMove={(e) => {
+                if (!draggingSubId || !canvasRef.current) return;
+                const rect = canvasRef.current.getBoundingClientRect();
+                const newX = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+                const newY = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
+                setSubtitles((prev) => prev.map((s) => (s.id === draggingSubId ? { ...s, x: newX, y: newY } : s)));
+                renderCanvasFrame(currentTimeRef.current);
+              }}
+              onPointerUp={() => setDraggingSubId(null)}
             >
-              <div className="flex-1 w-full flex items-center justify-center min-h-0 relative">
+              <div className="flex-1 w-full flex items-center justify-center min-h-0">
                 <canvas
                   ref={canvasRef}
                   width={selectedRatio.w}
                   height={selectedRatio.h}
-                  onPointerDown={handleCanvasPointerDown}
-                  className="max-h-full max-w-full rounded-2xl shadow-[0_0_35px_rgba(0,0,0,0.85)] border border-white/[0.08] object-contain bg-black cursor-crosshair"
+                  onPointerDown={(e) => {
+                    if (!canvasRef.current) return;
+                    const rect = canvasRef.current.getBoundingClientRect();
+                    const clickX = ((e.clientX - rect.left) / rect.width) * 100;
+                    const clickY = ((e.clientY - rect.top) / rect.height) * 100;
+                    const found = subtitles.find((s) => currentTime >= s.start && currentTime <= s.end && Math.abs((s.x ?? 50) - clickX) < 18 && Math.abs((s.y ?? 82) - clickY) < 10);
+                    if (found) { setDraggingSubId(found.id); setActiveSubId(found.id); }
+                  }}
+                  className="max-h-full max-w-full rounded-2xl shadow-2xl bg-black border border-white/[0.08] cursor-crosshair object-contain"
                   style={{ aspectRatio: selectedRatio.ratioCss }}
                 />
               </div>
 
-              {/* Player Controls Bar */}
-              <div className="w-full max-w-lg mt-3 bg-zinc-950/80 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/[0.08] flex items-center justify-between gap-3 shadow-xl shrink-0">
-                <div className="flex items-center gap-2 font-mono text-xs font-bold text-zinc-300">
-                  <span className="text-pink-400">{currentTime.toFixed(1)}s</span>
-                  <span className="text-zinc-600">/</span>
-                  <span>{totalDuration.toFixed(1)}s</span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => seekTo(0)}
-                    className="w-8 h-8 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center transition border border-white/[0.06]"
-                    title="Về đầu"
-                  >
-                    ⏮
-                  </button>
-                  <button
-                    onClick={togglePlay}
-                    className="w-10 h-10 rounded-2xl bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 flex items-center justify-center shadow-lg transition active:scale-95"
-                  >
-                    {isPlaying ? <PauseIcon className="w-5 h-5 fill-current" /> : <PlayIcon className="w-5 h-5 fill-current ml-0.5" />}
-                  </button>
-                  <button
-                    onClick={() => setIsMuted(!isMuted)}
-                    className={`w-8 h-8 rounded-xl flex items-center justify-center transition border ${
-                      isMuted ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-white/[0.06]'
-                    }`}
-                    title={isMuted ? "Bật tiếng" : "Tắt tiếng"}
-                  >
-                    {isMuted ? "🔇" : "🔊"}
-                  </button>
-                </div>
+              {/* Controls Bar */}
+              <div className="mt-3 flex items-center gap-4 bg-zinc-950/80 px-4 py-2 rounded-2xl border border-white/[0.08]">
+                <span className="font-mono text-xs text-pink-400">{currentTime.toFixed(1)}s / {totalDuration.toFixed(1)}s</span>
+                <button onClick={togglePlay} className="px-5 py-2 bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 rounded-xl font-bold text-xs">
+                  {isPlaying ? 'Tạm Dừng' : 'Phát'}
+                </button>
+                <button onClick={() => setIsMuted(!isMuted)} className="text-xs text-zinc-400">
+                  {isMuted ? '🔇 Tắt' : '🔊 Bật'}
+                </button>
               </div>
             </main>
           </div>
 
-          {/* Bottom Timeline Section (CÓ THANH TEXT LAYER RIÊNG) */}
-          <footer className="h-56 border-t border-white/[0.08] bg-[#09090d] flex flex-col shrink-0 p-3 space-y-2 select-none relative z-10">
-            <div className="flex items-center justify-between text-xs text-zinc-400">
-              <span className="font-bold flex items-center gap-1.5 text-zinc-300">
-                <CatPawSvg className="w-3.5 h-3.5 text-pink-400" />
-                <span>Dòng thời gian (Kéo thanh chữ hoặc bấm để nhảy kim)</span>
-              </span>
-              <span className="text-[11px] font-mono text-pink-400 font-bold">
-                {currentTime.toFixed(2)}s / {totalDuration.toFixed(2)}s
-              </span>
-            </div>
-
-            {/* Video Clips Timeline Ribbon */}
+          {/* Timeline Bottom (Video Clips, Chữ & Nhạc nền có kéo cắt) */}
+          <footer className="h-56 border-t border-white/[0.08] bg-[#09090d] p-3 space-y-2 shrink-0">
+            {/* 1. Track Video Clips */}
             <div
               ref={timelineTrackRef}
-              onClick={handleTimelineScrub}
+              onClick={(e) => {
+                if (!timelineTrackRef.current || totalDuration === 0) return;
+                const rect = timelineTrackRef.current.getBoundingClientRect();
+                seekTo(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * totalDuration);
+              }}
               className="relative h-14 bg-zinc-950 rounded-2xl border border-white/[0.08] p-1 flex items-center gap-1 cursor-pointer overflow-hidden shadow-inner"
             >
-              {videoClips.map((clip, index) => {
-                const widthPercent = totalDuration > 0 ? (clip.duration / totalDuration) * 100 : 100;
-                const isCurrent = activeClipId === clip.id;
-                return (
-                  <div
-                    key={clip.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDrop={(e) => handleDrop(e, index)}
+              {videoClips.map((clip) => (
+                <div key={clip.id} style={{ width: `${Math.max(8, (clip.duration / totalDuration) * 100)}%` }} className="h-full bg-zinc-900 border border-white/[0.08] rounded-xl p-2 flex items-center justify-between text-xs">
+                  <span className="truncate">{clip.name}</span>
+                  <span className="font-mono text-[10px] text-zinc-400">{clip.duration.toFixed(1)}s</span>
+                </div>
+              ))}
+              {totalDuration > 0 && <div style={{ left: `${(currentTime / totalDuration) * 100}%` }} className="absolute top-0 bottom-0 w-0.5 bg-pink-400 pointer-events-none z-20" />}
+            </div>
+
+            {/* 2. Track Text Subtitles */}
+            <div className="relative h-7 bg-zinc-950/80 rounded-xl border border-dashed border-amber-500/30 overflow-hidden flex items-center px-1">
+              {subtitles.map((sub) => (
+                <div
+                  key={sub.id}
+                  onClick={(e) => { e.stopPropagation(); setActiveSubId(sub.id); seekTo(sub.start); }}
+                  style={{ left: `${(sub.start / totalDuration) * 100}%`, width: `${((sub.end - sub.start) / totalDuration) * 100}%` }}
+                  className="absolute top-0.5 bottom-0.5 rounded bg-amber-500/30 text-amber-300 border border-amber-500/50 flex items-center justify-between px-1 text-[10px] font-bold cursor-pointer"
+                >
+                  <span onClick={(e) => { e.stopPropagation(); setSubtitles(subtitles.map(s => s.id === sub.id ? { ...s, start: Math.max(0, s.start - 0.5) } : s)); }}>◀</span>
+                  <span className="truncate mx-1">{sub.text}</span>
+                  <span onClick={(e) => { e.stopPropagation(); setSubtitles(subtitles.map(s => s.id === sub.id ? { ...s, end: Math.min(totalDuration, s.end + 0.5) } : s)); }}>▶</span>
+                </div>
+              ))}
+            </div>
+
+            {/* 3. Track BGM Audio (KÉO CẮT RÚT NGẮN THỜI GIAN NHẠC NỀN) */}
+            <div className="relative h-8 bg-zinc-950/80 rounded-xl border border-dashed border-pink-500/30 overflow-hidden flex items-center px-1">
+              {bgmTrack ? (
+                <div
+                  style={{
+                    left: `${((bgmTrack.timelineStart || 0) / totalDuration) * 100}%`,
+                    width: `${((bgmTrack.duration || totalDuration) / totalDuration) * 100}%`
+                  }}
+                  className="absolute top-0.5 bottom-0.5 rounded-lg bg-pink-500/30 border border-pink-400 flex items-center justify-between px-2 text-[10px] font-bold text-pink-200"
+                >
+                  {/* Nút kéo lùi nhạc */}
+                  <span
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleClipBarClick(clip);
+                      setBgmTrack((prev) => ({
+                        ...prev,
+                        timelineStart: Math.max(0, (prev.timelineStart || 0) - 0.5)
+                      }));
                     }}
-                    style={{ width: `${Math.max(8, widthPercent)}%` }}
-                    className={`h-full rounded-xl p-2 flex flex-col justify-between transition-all select-none relative overflow-hidden text-left border ${
-                      isCurrent
-                        ? 'bg-gradient-to-r from-pink-500/30 to-amber-500/20 border-pink-400 shadow-[0_0_12px_rgba(244,63,94,0.3)]'
-                        : 'bg-zinc-900/80 border-white/[0.06] hover:bg-zinc-800 text-zinc-300'
-                    } ${clip.isScoreClip ? 'ring-1 ring-amber-400/60' : ''}`}
+                    className="hover:scale-125 cursor-pointer opacity-70 hover:opacity-100"
+                    title="Dời nhạc về trước"
                   >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="text-[11px] font-extrabold truncate text-zinc-100 flex items-center gap-1">
-                        {clip.isScoreClip && <span className="text-amber-400 text-xs">⭐</span>}
-                        {clip.name}
-                      </span>
-                      <span className="text-[10px] font-mono text-zinc-400 shrink-0">{clip.duration.toFixed(1)}s</span>
-                    </div>
+                    ◀
+                  </span>
 
-                    <div className="flex items-center justify-between w-full">
-                      {clip.isScoreClip ? (
-                        <span className="text-[9px] text-amber-300 font-bold bg-amber-500/20 px-1 py-0.5 rounded">
-                          Chạm để đổi 2s điểm
-                        </span>
-                      ) : <span />}
-                      <span className="text-[9px] font-mono text-amber-400/80 font-bold">
-                        🔊 {Math.round((clip.volume ?? 1.0) * 100)}%
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+                  <span className="truncate mx-2">🎵 {bgmTrack.name} ({(bgmTrack.duration).toFixed(1)}s)</span>
 
-              {/* Playhead marker */}
-              {totalDuration > 0 && (
-                <div
-                  style={{ left: `${(currentTime / totalDuration) * 100}%` }}
-                  className="absolute top-0 bottom-0 w-0.5 bg-gradient-to-b from-pink-400 to-amber-300 pointer-events-none shadow-[0_0_8px_rgba(244,63,94,0.9)] z-20"
-                >
-                  <div className="absolute -top-1 -left-1.5 w-3.5 h-3.5 rounded-full bg-pink-500 border border-white flex items-center justify-center text-[7px]">
-                    🐾
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* THANH TEXT TRACK LAYER RIÊNG BIỆT (Kéo dài/thu ngắn & nhảy kim video) */}
-            <div className="relative h-7 bg-zinc-950/80 rounded-xl border border-dashed border-amber-500/30 overflow-hidden flex items-center px-1">
-              {subtitles.length === 0 ? (
-                <span className="text-[10px] text-zinc-600 pl-2">Chưa có chữ trên timeline. Vào tab "Chữ" để thêm.</span>
-              ) : (
-                subtitles.map((sub) => {
-                  const leftPercent = totalDuration > 0 ? (sub.start / totalDuration) * 100 : 0;
-                  const widthPercent = totalDuration > 0 ? ((sub.end - sub.start) / totalDuration) * 100 : 10;
-                  const isCurrent = activeSubId === sub.id;
-
-                  return (
-                    <div
-                      key={sub.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveSubId(sub.id);
-                        seekTo(sub.start); // Bấm vào là kim video nhảy đến vị trí đó
-                      }}
-                      style={{
-                        left: `${Math.max(0, leftPercent)}%`,
-                        width: `${Math.max(4, widthPercent)}%`
-                      }}
-                      className={`absolute top-0.5 bottom-0.5 rounded-lg flex items-center justify-between px-1.5 border text-[10px] font-bold cursor-pointer transition select-none z-10 ${
-                        isCurrent
-                          ? 'bg-amber-400 text-zinc-950 border-white shadow-md'
-                          : 'bg-amber-500/30 text-amber-300 border-amber-500/50 hover:bg-amber-500/50'
-                      }`}
-                      title="Bấm để đưa kim phát đến chữ này"
-                    >
-                      {/* Nút kéo lùi đầu trái */}
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const newStart = Math.max(0, sub.start - 0.5);
-                          setSubtitles((prev) =>
-                            prev.map((s) => (s.id === sub.id ? { ...s, start: newStart } : s))
-                          );
-                          seekTo(newStart);
-                        }}
-                        className="hover:scale-125 px-0.5 cursor-ew-resize font-mono opacity-70 hover:opacity-100"
-                        title="Kéo dài về trước"
-                      >
-                        ◀
-                      </span>
-
-                      <span className="truncate mx-1">{sub.text}</span>
-
-                      {/* Nút kéo dài đầu phải */}
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const newEnd = Math.min(totalDuration, sub.end + 0.5);
-                          setSubtitles((prev) =>
-                            prev.map((s) => (s.id === sub.id ? { ...s, end: newEnd } : s))
-                          );
-                          seekTo(sub.start);
-                        }}
-                        className="hover:scale-125 px-0.5 cursor-ew-resize font-mono opacity-70 hover:opacity-100"
-                        title="Kéo dài về sau"
-                      >
-                        ▶
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* BGM Audio Track Row */}
-            <div className="h-9 bg-zinc-950/80 rounded-xl border border-white/[0.06] px-3 flex items-center justify-between">
-              {bgmTrack ? (
-                <div className="flex items-center justify-between w-full text-xs">
-                  <div className="flex items-center gap-2">
-                    <MusicIcon className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
-                    <span className="font-bold text-zinc-200 truncate max-w-[200px]">{bgmTrack.name}</span>
-                    <span className="text-[10px] font-mono text-pink-400 font-bold">
-                      ({Math.round((bgmTrack.volume ?? 1.0) * 100)}%)
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setBgmTrack({ ...bgmTrack, isMuted: !bgmTrack.isMuted })}
-                      className="text-xs text-zinc-300 hover:text-white"
-                    >
-                      {bgmTrack.isMuted ? '🔇 Mute' : '🔊 Bật'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setBgmTrack(null);
-                        if (bgmAudioRef.current) bgmAudioRef.current.src = '';
-                        showToast('Đã gỡ bài nhạc');
-                      }}
-                      className="text-xs text-rose-400 hover:text-rose-300 font-bold"
-                    >
-                      ✕ Gỡ
-                    </button>
-                  </div>
+                  {/* Nút rút ngắn / kéo dài nhạc */}
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBgmTrack((prev) => ({
+                        ...prev,
+                        duration: Math.max(1.0, Math.min(prev.sourceDuration || totalDuration, prev.duration + 0.5))
+                      }));
+                    }}
+                    className="hover:scale-125 cursor-pointer opacity-70 hover:opacity-100"
+                    title="Kéo dài thời lượng phát"
+                  >
+                    ▶
+                  </span>
                 </div>
               ) : (
-                <div className="flex items-center justify-between w-full text-xs text-zinc-500">
-                  <div className="flex items-center gap-2">
-                    <MusicIcon className="w-3.5 h-3.5" />
-                    <span>Chưa có nhạc nền (BGM)</span>
-                  </div>
-                  <button
-                    onClick={() => setShowAddMusicModal(true)}
-                    className="text-xs font-bold text-pink-400 hover:text-pink-300"
-                  >
-                    + Thêm Nhạc
-                  </button>
-                </div>
+                <span className="text-[10px] text-zinc-600 pl-2">Chưa có nhạc nền. Bấm "+ Thêm Nhạc Nền" để nạp file.</span>
               )}
             </div>
           </footer>
 
-          {/* Modal Popup 15s Cuối Chọn Điểm Số */}
-          {showScorePickerModal && (
-            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-              <div className="bg-[#110f17] border border-white/[0.12] w-full max-w-lg rounded-3xl p-5 space-y-4 shadow-2xl">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                  <h3 className="font-extrabold text-sm text-zinc-100 flex items-center gap-1.5">
-                    <span>🎯 Chọn 2s Điểm Số (15s Cuối Cùng)</span>
-                  </h3>
-                  <button
-                    onClick={() => setShowScorePickerModal(false)}
-                    className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="w-full aspect-video bg-black rounded-2xl overflow-hidden border border-white/[0.08] relative">
-                  <video
-                    ref={pickerVideoRef}
-                    className="w-full h-full object-contain"
-                    playsInline
-                    crossOrigin="anonymous"
-                  />
-                  <div className="absolute top-2 right-2 bg-black/75 px-2 py-1 rounded text-[10px] font-mono font-bold text-amber-300">
-                    Khung hình: {previewScoreTime.toFixed(2)}s
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-zinc-300">
-                    <span>Mốc bắt đầu 2 giây:</span>
-                    <span className="font-bold text-amber-400 font-mono">
-                      {previewScoreTime.toFixed(2)}s ➔ {(previewScoreTime + 2.0).toFixed(2)}s
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={minScoreWindow}
-                    max={maxScoreWindow}
-                    step={0.05}
-                    value={previewScoreTime}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setPreviewScoreTime(val);
-                      if (pickerVideoRef.current) pickerVideoRef.current.currentTime = val;
-                    }}
-                    className="w-full accent-amber-400 h-2 bg-zinc-800 rounded-lg cursor-pointer"
-                  />
-                </div>
-
-                <div className="grid grid-cols-4 gap-1.5 pt-1">
-                  {[-0.5, -0.1, 0.1, 0.5].map((step) => (
-                    <button
-                      key={step}
-                      onClick={() => {
-                        const next = Math.max(minScoreWindow, Math.min(maxScoreWindow, previewScoreTime + step));
-                        setPreviewScoreTime(next);
-                        if (pickerVideoRef.current) pickerVideoRef.current.currentTime = next;
-                      }}
-                      className="py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-mono font-bold transition"
-                    >
-                      {step > 0 ? `+${step}s` : `${step}s`}
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => applySelectedScoreTime(previewScoreTime)}
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-amber-400 text-zinc-950 font-black text-xs shadow-lg transition active:scale-95"
-                >
-                  Xác Nhận Lấy 2 Giây Này
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Modal Thêm Nhạc / Link YouTube */}
+          {/* Modal Music */}
           {showAddMusicModal && (
-            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-              <div className="bg-[#110f17] border border-white/[0.12] w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                  <h3 className="font-extrabold text-sm text-zinc-100 flex items-center gap-1.5">
-                    <MusicIcon className="w-4 h-4 text-pink-400" />
-                    <span>Thêm Nhạc Nền (BGM)</span>
-                  </h3>
-                  <button
-                    onClick={() => setShowAddMusicModal(false)}
-                    className="w-7 h-7 rounded-full bg-zinc-800 text-zinc-400 hover:text-white flex items-center justify-center"
-                  >
-                    ✕
-                  </button>
+            <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4">
+              <div className="bg-[#110f17] border border-white/[0.12] w-full max-w-md rounded-3xl p-5 space-y-4">
+                <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+                  <h3 className="font-bold text-sm">Nạp Nhạc Nền (BGM)</h3>
+                  <button onClick={() => setShowAddMusicModal(false)} className="text-zinc-400">✕</button>
                 </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-300">1. Dán Link YouTube:</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={ytLinkInput}
-                      onChange={(e) => setYtLinkInput(e.target.value)}
-                      placeholder="https://youtube.com/watch?v=..."
-                      className="flex-1 bg-zinc-950 border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500"
-                    />
-                    <button
-                      onClick={handleAddMusicFromYouTube}
-                      disabled={isProcessingAudio}
-                      className="px-3 py-2 bg-pink-500 hover:bg-pink-400 text-zinc-950 font-bold text-xs rounded-xl transition disabled:opacity-50"
-                    >
-                      Kết Nối
-                    </button>
+                <div className="space-y-2 text-xs">
+                  <label className="font-bold text-zinc-300">1. Dán Link YouTube:</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={ytLinkInput} onChange={(e) => setYtLinkInput(e.target.value)} placeholder="https://youtube.com/watch?v=..." className="flex-1 bg-zinc-950 border border-white/[0.08] rounded-xl px-3 py-2 text-white" />
+                    <button onClick={handleAddMusicFromYouTube} disabled={isProcessingAudio} className="px-3 py-2 bg-pink-500 text-zinc-950 font-bold rounded-xl">Kết Nối</button>
                   </div>
                 </div>
-
-                <div className="relative flex items-center justify-center my-2">
-                  <div className="border-t border-zinc-800 w-full" />
-                  <span className="bg-[#110f17] px-2 text-[10px] text-zinc-500 font-bold uppercase">Hoặc</span>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-300">2. Tải File Audio / Video từ máy:</label>
-                  <label className="w-full py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-750 text-zinc-200 border border-white/[0.08] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition">
-                    <span>Chọn tệp MP3, WAV, hoặc MP4 để trích xuất</span>
-                    <input
-                      type="file"
-                      accept="audio/*,video/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleAddMusicFromFile(file);
-                      }}
-                      className="hidden"
-                    />
+                <div className="space-y-2 text-xs">
+                  <label className="font-bold text-zinc-300">2. Hoặc nạp file trực tiếp từ máy:</label>
+                  <label className="w-full py-3 bg-zinc-800 rounded-xl text-center block cursor-pointer text-zinc-200 border border-white/[0.08]">
+                    <span>Chọn tệp MP3, WAV hoặc MP4</span>
+                    <input type="file" accept="audio/*,video/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAddMusicFromFile(f); }} className="hidden" />
                   </label>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Popup Tiến Trình Xuất Video Full HD */}
-          {isExporting && (
-            <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-              <div className="bg-[#110f17] border border-white/[0.12] w-full max-w-xs rounded-3xl p-6 flex flex-col items-center justify-center space-y-4 shadow-2xl">
-                <div className="text-pink-400 animate-bounce">
-                  <CatPawSvg className="w-12 h-12" />
-                </div>
-                <div className="text-sm font-black text-zinc-100">Đang xuất video 1080p...</div>
-                <div className="w-full bg-zinc-800 h-2.5 rounded-full overflow-hidden">
-                  <div
-                    style={{ width: `${exportProgress}%` }}
-                    className="h-full bg-gradient-to-r from-pink-500 to-amber-400 transition-all duration-150"
-                  />
-                </div>
-                <span className="text-xs font-mono font-bold text-pink-400">{exportProgress}%</span>
-              </div>
-            </div>
-          )}
-
-          {/* Toast Notification */}
+          {/* Toast */}
           {toastMsg && (
-            <div className="fixed bottom-6 right-6 z-50 bg-zinc-950/95 border border-pink-500/40 text-pink-200 px-4 py-2.5 rounded-2xl shadow-2xl text-xs font-bold flex items-center gap-2 backdrop-blur-md">
-              <CatPawSvg className="w-4 h-4 text-pink-400" />
-              <span>{toastMsg}</span>
+            <div className="fixed bottom-6 right-6 z-50 bg-zinc-900 border border-pink-500/40 text-pink-200 px-4 py-2 rounded-2xl text-xs font-bold shadow-2xl">
+              {toastMsg}
             </div>
           )}
         </div>
       );
     }
 
-    /* Khởi chạy React 18 */
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
