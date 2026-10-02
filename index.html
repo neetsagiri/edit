@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>NekoCut Pro - Trình Biên Tập Video Wuthering Waves</title>
 
-  <!-- PWA Meta -->
+  <!-- PWA Manifest & App Config -->
+  <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#07070b" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -21,33 +22,24 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Google Fonts -->
+  <!-- Google Fonts Anime & Gaming -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=Orbitron:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Cinzel:wght@700;900&family=Montserrat:wght@500;700;900&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
 
   <style>
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
     html, body {
       overscroll-behavior-y: contain;
       touch-action: pan-x pan-y;
-      user-select: none;
-      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
       background-color: #050508;
       font-family: 'Montserrat', sans-serif;
     }
-    .font-orbitron {
-      font-family: 'Orbitron', monospace, sans-serif;
-    }
+    .font-orbitron { font-family: 'Orbitron', sans-serif; }
+    .font-bangers { font-family: 'Bangers', cursive; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-    .neko-scroll {
-      -webkit-overflow-scrolling: touch;
-    }
     .neko-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
     .neko-scroll::-webkit-scrollbar-track { background: #0c0a13; }
     .neko-scroll::-webkit-scrollbar-thumb { background: #ff2a7a; border-radius: 4px; }
@@ -57,12 +49,10 @@
       0%, 100% { transform: scale(1); opacity: 0.85; }
       50% { transform: scale(1.08); opacity: 1; }
     }
-    .anim-pulse-paw {
-      animation: pulse-paw 2s infinite ease-in-out;
-    }
+    .anim-pulse-paw { animation: pulse-paw 2s infinite ease-in-out; }
   </style>
 </head>
-<body class="bg-[#050508] text-white selection:bg-pink-500 selection:text-white overflow-hidden h-[100dvh] w-screen font-sans">
+<body class="bg-[#050508] text-white selection:bg-pink-500 selection:text-white overflow-hidden h-[100dvh] w-screen">
   <div id="root" class="h-full w-full"></div>
 
   <script type="text/babel">
@@ -123,6 +113,15 @@
         <circle cx="41" cy="24" r="11" />
         <circle cx="59" cy="24" r="11" />
         <circle cx="76" cy="38" r="11" />
+      </svg>
+    );
+
+    const CatEarsSvg = ({ className = "w-16 h-8 text-pink-500" }) => (
+      <svg viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+        <path d="M10 38 L28 4 L48 38 Z" fill="currentColor" fillOpacity="0.25" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M20 38 L28 16 L38 38 Z" fill="currentColor" fillOpacity="0.6" />
+        <path d="M110 38 L92 4 L72 38 Z" fill="currentColor" fillOpacity="0.25" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" />
+        <path d="M100 38 L92 16 L82 38 Z" fill="currentColor" fillOpacity="0.6" />
       </svg>
     );
 
@@ -1039,7 +1038,7 @@
                         <span className="text-lg">🐾</span>
                       </div>
                       <p className="text-xs text-zinc-400 font-medium leading-relaxed max-w-[280px]">
-                        Tải clip gameplay Neko lên để biên tập chuẩn Mobile & PC
+                        Tải clip gameplay Wuthering Waves lên để biên tập chuẩn Mobile & PC
                       </p>
 
                       <label className="mt-4 w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-[#ff2a7a] via-[#ff5e57] to-[#ffb300] text-black font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer shadow-[0_4px_22px_rgba(255,42,122,0.45)] hover:brightness-105 active:scale-[0.98] transition">
@@ -1064,30 +1063,32 @@
                     playNekoSound('click');
                     setShowTemplateModal(true);
                   }}
-                  className="rounded-2xl bg-[#14141c] border border-white/[0.06] p-3.5 flex items-center justify-between cursor-pointer hover:border-pink-500/40 active:scale-[0.99] transition shadow-lg"
+                  className="relative"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-11 h-11 rounded-full overflow-hidden bg-zinc-800 border border-pink-500/40 shrink-0">
-                      <img
-                        src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=120&auto=format&fit=crop&q=80"
-                        alt="Neko Character"
-                        className="w-full h-full object-cover"
-                        onError={(e) => { e.target.src = 'https://placehold.co/80x80/23202e/ff2a7a?text=NEKO'; }}
-                      />
-                    </div>
-                    <div className="min-w-0 pr-1">
-                      <div className="text-xs font-bold text-[#ff2a7a] truncate">
-                        Mẫu MatrixAuto Cắt Sẵn
-                      </div>
-                      <div className="text-[10px] text-zinc-400 mt-0.5 truncate">
-                        Tự trích 2s điểm cao cuối trận lên đầu clip
-                      </div>
-                    </div>
+                  <div className="flex items-end gap-3 pl-8 -mb-1 relative z-10">
+                    <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[18px] border-b-[#ff2a7a] drop-shadow-[0_0_8px_rgba(255,42,122,0.9)]" />
+                    <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[18px] border-b-[#ff2a7a] drop-shadow-[0_0_8px_rgba(255,42,122,0.9)]" />
                   </div>
 
-                  <div className="text-xs font-bold text-[#ff2a7a] flex items-center gap-1 shrink-0 pl-2">
-                    <span>Thử ngay</span>
-                    <span>→</span>
+                  <div className="rounded-[26px] bg-[#121118]/90 border border-white/[0.07] p-5 shadow-2xl relative overflow-hidden backdrop-blur-sm cursor-pointer hover:border-pink-500/40 transition">
+                    <div className="absolute -top-4 -left-4 text-pink-500/10 pointer-events-none scale-150">
+                      <CatPawSvg className="w-24 h-24" />
+                    </div>
+
+                    <div className="relative z-10 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-extrabold text-white">Mẫu MatrixAuto Cắt Sẵn</h2>
+                        <span className="text-lg">⚡</span>
+                      </div>
+                      <p className="text-xs text-zinc-400 font-medium leading-relaxed max-w-[280px]">
+                        Tự trích 2s điểm cao cuối trận lên đầu clip
+                      </p>
+
+                      <div className="mt-4 w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-[#ff2a7a] via-[#ff5e57] to-[#ffb300] text-black font-extrabold text-sm flex items-center justify-center gap-2 shadow-[0_4px_22px_rgba(255,42,122,0.45)] hover:brightness-105 active:scale-[0.98] transition">
+                        <CatPawSvg className="w-4 h-4 fill-black" />
+                        <span>Mở Cấu Hình MatrixAuto</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1900,7 +1901,7 @@
             </div>
           )}
 
-          {/* Modal MatrixAuto */}
+          {/* Modal MatrixAuto chuẩn giao diện Dự Án Mới */}
           {showTemplateModal && (
             <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
               <div className="bg-[#121019] border-t sm:border border-white/[0.12] w-full max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[88vh] overflow-hidden shadow-2xl">
@@ -1908,7 +1909,7 @@
                 <div className="p-4 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-[#15131d]">
                   <div className="flex items-center gap-2">
                     <CatPawSvg className="w-5 h-5 text-pink-400" />
-                    <h3 className="font-extrabold text-sm text-zinc-100">Kịch Bản MatrixAuto Neko</h3>
+                    <h3 className="font-extrabold text-sm text-zinc-100">Cấu Hình Mẫu MatrixAuto Neko</h3>
                   </div>
                   <button
                     onClick={() => setShowTemplateModal(false)}
