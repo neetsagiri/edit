@@ -177,7 +177,7 @@
       { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫️', desc: 'Hòa tan mềm mại' },
       { id: 'zoom', name: 'Phóng To Nhanh', icon: '🔍', desc: 'Đột phá khung hình' },
       { id: 'slide', name: 'Lướt Cạnh Trái', icon: '↔️', desc: 'Trượt ngang mượt mà' },
-      { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆️', desc: 'Trượt dọc điện ảnh' },
+      { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆️️', desc: 'Trượt dọc điện ảnh' },
       { id: 'flash', name: 'Chớp Sáng Trắng', icon: '⚡', desc: 'Chớp sáng phong cách anime' },
       { id: 'black_fade', name: 'Chớp Đen Noir', icon: '🌑', desc: 'Hạ đen kịch tính' },
       { id: 'glitch', name: 'Neko Glitch Matrix', icon: '👾', desc: 'Rung giật cyberpunk' }
@@ -188,7 +188,7 @@
       { id: 'fade_in', name: 'Mờ Dần Vào', icon: '🌅' },
       { id: 'zoom_in', name: 'Thu Phóng Vào', icon: '🔎' },
       { id: 'slide_in_left', name: 'Trượt Từ Trái', icon: '⬅️' },
-      { id: 'slide_in_right', name: 'Trượt Từ Phải', icon: '➡️️' },
+      { id: 'slide_in_right', name: 'Trượt Từ Phải', icon: '➡️' },
       { id: 'slide_in_up', name: 'Trượt Từ Dưới', icon: '⬆️' },
       { id: 'flash_in', name: 'Chớp Sáng Vào', icon: '✨' }
     ];
@@ -243,6 +243,11 @@
       const m = Math.floor(s / 60);
       const remSec = Math.floor(s % 60);
       return `${String(m).padStart(2, '0')}:${String(remSec).padStart(2, '0')}`;
+    };
+
+    // Hàm Easing mượt mà chuyên dụng cho Chuyển Cảnh Điện Ảnh
+    const easeInOutCubic = (x) => {
+      return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
     };
 
     const getExactVideoDuration = (videoUrl) => {
@@ -304,7 +309,6 @@
       const [coverTitleText, setCoverTitleText] = useState('NEKO MEOW COMBAT 🐾');
       const coverBackupTimeRef = useRef(0);
 
-      // Popup chọn 2s của 15s cuối
       const [showScoreSelectModal, setShowScoreSelectModal] = useState(false);
       const [scoreTrimWindowStart, setScoreTrimWindowStart] = useState(0);
       const scoreModalCanvasRef = useRef(null);
@@ -326,7 +330,6 @@
       const [subtitles, setSubtitles] = useState([]);
       const [activeSubId, setActiveSubId] = useState(null);
 
-      // Kéo thả chữ trực tiếp trên Canvas
       const textBoxesRef = useRef(new Map());
       const isDraggingTextRef = useRef(false);
       const textDragStartRef = useRef({ x: 0, y: 0, initialSubX: 0.5, initialSubY: 0.82 });
@@ -337,7 +340,6 @@
       const [isExporting, setIsExporting] = useState(false);
       const [exportProgress, setExportProgress] = useState(0);
 
-      // Pan & Zoom Canvas
       const previewZoomRef = useRef(1.0);
       const previewPanRef = useRef({ x: 0, y: 0 });
       const activePointersRef = useRef(new Map());
@@ -360,7 +362,9 @@
       const animationFrameRef = useRef(null);
       const lastUiUpdateRef = useRef(0);
 
-      // Web Audio Mixer Refs
+      // Ref quản lý đồng bộ video 2 nhằm tránh seek giật
+      const vid2SyncLockRef = useRef({ isSynced: false, targetClipId: null });
+
       const exportAudioCtxRef = useRef(null);
       const vidSourceNodeRef = useRef(null);
       const bgmSourceNodeRef = useRef(null);
@@ -450,6 +454,7 @@
         return subtitles.find((s) => s.id === activeSubId) || null;
       }, [subtitles, activeSubId]);
 
+      // Tính toán vùng thời gian và xác định chính xác cặp Clip chuyển cảnh
       const getCurrentClipInfo = useCallback(
         (time) => {
           let acc = 0;
@@ -464,15 +469,19 @@
 
               let prevClipData = null;
               const transDur = c.transitionDuration || 0.45;
+
+              // Kiểm tra xem có đang ở trong vùng chuyển tiếp giữa 2 clip không
               if (i > 0 && timelineOffset < transDur && c.transition !== 'none') {
                 const prevC = videoClips[i - 1];
                 const prevSpd = prevC.speed || 1.0;
                 const prevEffDur = prevC.duration / prevSpd;
-                const prevOffset = prevEffDur - (transDur - timelineOffset);
+                // Tính toán thời gian nguồn chính xác của clip trước
+                const prevTimelineOffset = Math.max(0, prevEffDur - (transDur - timelineOffset));
                 prevClipData = {
                   clip: prevC,
                   clipIndex: i - 1,
-                  mediaSourceTime: prevC.trimStart + (prevOffset * prevSpd)
+                  mediaSourceTime: prevC.trimStart + (prevTimelineOffset * prevSpd),
+                  speed: prevSpd
                 };
               }
 
@@ -488,6 +497,7 @@
             }
             acc += effectiveDur;
           }
+
           if (videoClips.length > 0) {
             const last = videoClips[videoClips.length - 1];
             const spd = last.speed || 1.0;
@@ -522,6 +532,7 @@
         return { x: drawX, y: drawY, w: drawW, h: drawH };
       };
 
+      // VẼ FRAME ĐỒNG BỘ: Cô lập 2 tầng render hoàn toàn và áp dụng Cubic Easing
       const drawFrameToContext = useCallback(
         (ctx, targetW, targetH, time) => {
           const vid = hiddenVideoRef.current;
@@ -540,7 +551,10 @@
           const timeLeft = Math.max(0, effectiveDuration - clipOffsetTime);
 
           const isTransitioning = prevClipData && clipOffsetTime < transDur && clip.transition !== 'none';
-          const progress = isTransitioning ? Math.max(0, Math.min(1, clipOffsetTime / transDur)) : 1;
+          
+          // Sử dụng hàm Easing mượt mà
+          const rawProgress = isTransitioning ? Math.max(0, Math.min(1, clipOffsetTime / transDur)) : 1;
+          const easeProgress = easeInOutCubic(rawProgress);
 
           const zoom = previewZoomRef.current || 1.0;
           const pan = previewPanRef.current || { x: 0, y: 0 };
@@ -548,28 +562,35 @@
           const panScaleY = targetH / (selectedRatio.h || 1);
           const basePan = { x: pan.x * panScaleX, y: pan.y * panScaleY };
 
-          // 1. Layer Clip Liền Trước (Khi chuyển cảnh)
+          // --- 1. VẼ LAYER CLIP LIỀN TRƯỚC (NẾU ĐANG CHUYỂN CẢNH) ---
           if (isTransitioning && vid2 && vid2.readyState >= 2) {
             ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, targetW, targetH);
+            ctx.clip(); // Giới hạn trong viewport không bị lem
+
             let prevAlpha = 1.0;
             let prevScale = 1.0;
             let prevTransX = 0;
             let prevTransY = 0;
 
             if (clip.transition === 'fade') {
-              prevAlpha = 1 - progress;
+              prevAlpha = 1.0 - easeProgress;
             } else if (clip.transition === 'zoom') {
-              prevScale = 1 + progress * 0.35;
-              prevAlpha = 1 - progress;
+              prevScale = 1.0 + easeProgress * 0.35;
+              prevAlpha = 1.0 - easeProgress;
             } else if (clip.transition === 'slide') {
-              prevTransX = -progress * targetW;
+              prevTransX = -easeProgress * targetW;
             } else if (clip.transition === 'slide_up') {
-              prevTransY = -progress * targetH;
+              prevTransY = -easeProgress * targetH;
             } else if (clip.transition === 'black_fade') {
-              prevAlpha = progress < 0.5 ? (1 - progress * 2) : 0;
+              prevAlpha = rawProgress < 0.5 ? (1.0 - rawProgress * 2) : 0;
             }
 
             ctx.globalAlpha = Math.max(0, Math.min(1, prevAlpha));
+            const filterPrev = FILTERS.find((f) => f.id === prevClipData.clip.colorFilter) || FILTERS[0];
+            ctx.filter = (filterPrev && filterPrev.css && filterPrev.css !== 'none') ? filterPrev.css : 'none';
+
             const dimsPrev = getDrawDimensions(
               vid2,
               targetW,
@@ -582,8 +603,12 @@
             ctx.restore();
           }
 
-          // 2. Layer Clip Hiện Tại
+          // --- 2. VẼ LAYER CLIP HIỆN TẠI (CHÍNH) ---
           ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, targetW, targetH);
+          ctx.clip();
+
           const filterDef = FILTERS.find((f) => f.id === clip.colorFilter) || FILTERS[0];
           ctx.filter = (filterDef && filterDef.css && filterDef.css !== 'none') ? filterDef.css : 'none';
 
@@ -594,40 +619,40 @@
 
           if (isTransitioning) {
             if (clip.transition === 'fade') {
-              curAlpha = progress;
+              curAlpha = easeProgress;
             } else if (clip.transition === 'zoom') {
-              curScale = 0.65 + progress * 0.35;
-              curAlpha = progress;
+              curScale = 0.7 + easeProgress * 0.3;
+              curAlpha = easeProgress;
             } else if (clip.transition === 'slide') {
-              curTransX = (1 - progress) * targetW;
+              curTransX = (1.0 - easeProgress) * targetW;
             } else if (clip.transition === 'slide_up') {
-              curTransY = (1 - progress) * targetH;
+              curTransY = (1.0 - easeProgress) * targetH;
             } else if (clip.transition === 'black_fade') {
-              curAlpha = progress < 0.5 ? 0 : (progress - 0.5) * 2;
+              curAlpha = rawProgress < 0.5 ? 0 : (rawProgress - 0.5) * 2;
             } else if (clip.transition === 'glitch') {
-              curTransX = (Math.random() - 0.5) * 20 * (1 - progress);
-              curTransY = (Math.random() - 0.5) * 14 * (1 - progress);
+              curTransX = (Math.random() - 0.5) * 22 * (1.0 - easeProgress);
+              curTransY = (Math.random() - 0.5) * 14 * (1.0 - easeProgress);
             }
           }
 
-          // Anim In Video
+          // Xử lý Anim In (Khi không bị transition đè lên)
           if (!isTransitioning && clip.animIn && clip.animIn !== 'none' && clipOffsetTime < inDur) {
-            const pIn = clipOffsetTime / inDur;
+            const pIn = easeInOutCubic(clipOffsetTime / inDur);
             if (clip.animIn === 'fade_in') curAlpha = Math.min(curAlpha, pIn);
             else if (clip.animIn === 'zoom_in') curScale *= (0.4 + pIn * 0.6);
-            else if (clip.animIn === 'slide_in_left') curTransX -= (1 - pIn) * targetW * 0.6;
-            else if (clip.animIn === 'slide_in_right') curTransX += (1 - pIn) * targetW * 0.6;
-            else if (clip.animIn === 'slide_in_up') curTransY += (1 - pIn) * targetH * 0.6;
+            else if (clip.animIn === 'slide_in_left') curTransX -= (1.0 - pIn) * targetW * 0.6;
+            else if (clip.animIn === 'slide_in_right') curTransX += (1.0 - pIn) * targetW * 0.6;
+            else if (clip.animIn === 'slide_in_up') curTransY += (1.0 - pIn) * targetH * 0.6;
           }
 
-          // Anim Out Video
+          // Xử lý Anim Out
           if (clip.animOut && clip.animOut !== 'none' && timeLeft < outDur) {
-            const pOut = timeLeft / outDur;
+            const pOut = easeInOutCubic(timeLeft / outDur);
             if (clip.animOut === 'fade_out') curAlpha = Math.min(curAlpha, pOut);
             else if (clip.animOut === 'zoom_out') curScale *= (0.4 + pOut * 0.6);
-            else if (clip.animOut === 'slide_out_left') curTransX -= (1 - pOut) * targetW * 0.6;
-            else if (clip.animOut === 'slide_out_right') curTransX += (1 - pOut) * targetW * 0.6;
-            else if (clip.animOut === 'slide_out_down') curTransY += (1 - pOut) * targetH * 0.6;
+            else if (clip.animOut === 'slide_out_left') curTransX -= (1.0 - pOut) * targetW * 0.6;
+            else if (clip.animOut === 'slide_out_right') curTransX += (1.0 - pOut) * targetW * 0.6;
+            else if (clip.animOut === 'slide_out_down') curTransY += (1.0 - pOut) * targetH * 0.6;
             else if (clip.animOut === 'black_out') curAlpha = Math.min(curAlpha, pOut);
           }
 
@@ -642,19 +667,19 @@
           );
           ctx.drawImage(vid, dimsCur.x, dimsCur.y, dimsCur.w, dimsCur.h);
 
-          // Flash
+          // Hiệu ứng Flash trắng chuyển cảnh
           if (isTransitioning && clip.transition === 'flash') {
-            ctx.fillStyle = `rgba(255,255,255,${Math.max(0, 1 - progress * 1.6)})`;
+            ctx.fillStyle = `rgba(255,255,255,${Math.max(0, 1.0 - rawProgress * 1.5)})`;
             ctx.fillRect(0, 0, targetW, targetH);
           }
           if (clip.animIn === 'flash_in' && !isTransitioning && clipOffsetTime < inDur) {
-            ctx.fillStyle = `rgba(255,255,255,${Math.max(0, (1 - clipOffsetTime / inDur) * 0.85)})`;
+            ctx.fillStyle = `rgba(255,255,255,${Math.max(0, (1.0 - clipOffsetTime / inDur) * 0.85)})`;
             ctx.fillRect(0, 0, targetW, targetH);
           }
 
           ctx.restore();
 
-          // 3. Hệ Thống Dựng Chữ Nghệ Thuật & Bounding Box
+          // --- 3. VẼ PHỤ ĐỀ / CHỮ NGHỆ THUẬT ---
           textBoxesRef.current.clear();
 
           subtitles.forEach((sub) => {
@@ -680,7 +705,6 @@
               const elapsedInSub = time - sub.start;
               const animType = sub.anim || 'none';
 
-              // Text Animation
               if (animType === 'bounce') {
                 if (elapsedInSub < 0.4) {
                   const p = elapsedInSub / 0.4;
@@ -695,7 +719,7 @@
                 if (elapsedInSub < 0.35) {
                   const p = elapsedInSub / 0.35;
                   textAlpha = p;
-                  offsetY = (1 - p) * 20;
+                  offsetY = (1.0 - p) * 20;
                 }
               } else if (animType === 'glitch') {
                 offsetX = (Math.random() - 0.5) * 6;
@@ -714,7 +738,6 @@
               const boxW = textW + 28;
               const boxH = fSize * 1.55;
 
-              // Lưu bounding box cho chạm & kéo thả
               textBoxesRef.current.set(sub.id, {
                 subId: sub.id,
                 x: pX - boxW / 2,
@@ -746,7 +769,6 @@
               ctx.fillStyle = sub.color || tmpl.color || '#ff2a7a';
               ctx.fillText(textToDraw, 0, 0);
 
-              // Vẽ Bounding Box nét đứt khi được chọn
               if (activeSubId === sub.id) {
                 ctx.shadowBlur = 0;
                 ctx.strokeStyle = '#ff2a7a';
@@ -755,7 +777,6 @@
                 ctx.strokeRect(-boxW / 2 - 6, -boxH / 2 - 6, boxW + 12, boxH + 12);
                 ctx.setLineDash([]);
 
-                // Nút Xóa nhỏ ở góc phải
                 ctx.fillStyle = '#ff2a7a';
                 ctx.beginPath();
                 ctx.arc(boxW / 2 + 6, -boxH / 2 - 6, 8, 0, Math.PI * 2);
@@ -783,6 +804,7 @@
         [drawFrameToContext]
       );
 
+      // Seek chính xác và chuẩn bị trước buffer cho thẻ video thứ hai
       const seekTo = useCallback(
         (targetTime, forceRender = false) => {
           const clamped = Math.max(0, Math.min(totalDuration, targetTime));
@@ -804,12 +826,13 @@
             vid.playbackRate = info.clip.speed || 1.0;
             vid.volume = isMuted ? 0 : (info.clip.volume ?? 1.0);
 
+            // Nạp buffer trước cho video thứ 2 khi chuẩn bị bước vào vùng chuyển cảnh
             if (info.prevClipData && vid2) {
               if (vid2.src !== info.prevClipData.clip.url) {
                 vid2.src = info.prevClipData.clip.url;
                 vid2.load();
               }
-              if (Math.abs(vid2.currentTime - info.prevClipData.mediaSourceTime) > 0.05) {
+              if (Math.abs(vid2.currentTime - info.prevClipData.mediaSourceTime) > 0.08) {
                 vid2.currentTime = info.prevClipData.mediaSourceTime;
               }
             }
@@ -858,6 +881,7 @@
           bgm.play().catch(() => {});
         }
 
+        vid2SyncLockRef.current = { isSynced: false, targetClipId: null };
         isPlayingRef.current = true;
         setIsPlaying(true);
       };
@@ -875,7 +899,7 @@
         else playVideo();
       };
 
-      // Vòng lặp phát video
+      // Vòng lặp phát video tối ưu hóa chuyển cảnh không giật khựng
       useEffect(() => {
         if (currentPage !== 'editor') return;
 
@@ -908,6 +932,7 @@
                   vid.playbackRate = nextSpd;
                   vid.currentTime = nextClip.trimStart;
                   vid.play().catch(() => {});
+                  vid2SyncLockRef.current = { isSynced: false, targetClipId: null };
                 } else {
                   pauseVideo();
                   seekTo(totalDuration, true);
@@ -923,18 +948,31 @@
 
                 currentTimeRef.current = exactTimelineTime;
 
+                // Đồng bộ và giữ buffer cho thẻ video thứ hai (vid2)
                 const info = getCurrentClipInfo(exactTimelineTime);
                 if (info && info.prevClipData && vid2) {
                   if (vid2.src !== info.prevClipData.clip.url) {
                     vid2.src = info.prevClipData.clip.url;
                     vid2.load();
                   }
-                  if (vid2.paused) vid2.play().catch(() => {});
-                  if (Math.abs(vid2.currentTime - info.prevClipData.mediaSourceTime) > 0.08) {
+                  
+                  // Chỉ seek 1 lần ban đầu khi bước vào vùng chuyển cảnh để tránh khựng do seek liên tục
+                  if (!vid2SyncLockRef.current.isSynced || vid2SyncLockRef.current.targetClipId !== info.prevClipData.clip.id) {
+                    vid2.playbackRate = info.prevClipData.speed || 1.0;
                     vid2.currentTime = info.prevClipData.mediaSourceTime;
+                    vid2.play().catch(() => {});
+                    vid2SyncLockRef.current = { isSynced: true, targetClipId: info.prevClipData.clip.id };
+                  } else {
+                    // Nếu lệch quá 0.25s thì điều chỉnh lại nhẹ nhàng
+                    if (Math.abs(vid2.currentTime - info.prevClipData.mediaSourceTime) > 0.25) {
+                      vid2.currentTime = info.prevClipData.mediaSourceTime;
+                    }
                   }
-                } else if (vid2 && !vid2.paused) {
-                  vid2.pause();
+                } else {
+                  if (vid2 && !vid2.paused) {
+                    vid2.pause();
+                  }
+                  vid2SyncLockRef.current = { isSynced: false, targetClipId: null };
                 }
 
                 if (timelineScrollRef.current) {
@@ -962,7 +1000,7 @@
         };
       }, [currentPage, videoClips, totalDuration, timelineZoom, renderCanvasFrame, seekTo, getCurrentClipInfo]);
 
-      // TƯƠNG TÁC CHẠM & KÉO THẢ CHỮ TRỰC TIẾP TRÊN CANVAS
+      // Tương tác chạm & kéo thả chữ
       const handlePreviewPointerDown = (e) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -970,11 +1008,9 @@
         const clientX = e.clientX;
         const clientY = e.clientY;
 
-        // Tính tọa độ điểm chạm quy chuẩn trên canvas
         const canvasX = ((clientX - rect.left) / rect.width) * canvas.width;
         const canvasY = ((clientY - rect.top) / rect.height) * canvas.height;
 
-        // Kiểm tra xem có chạm vào hộp chữ nào không
         let hitSubId = null;
         for (const [subId, box] of textBoxesRef.current.entries()) {
           if (
@@ -1002,7 +1038,6 @@
           return;
         }
 
-        // Nếu không chạm vào chữ -> Dùng cho Pan & Zoom
         activePointersRef.current.set(e.pointerId, { x: clientX, y: clientY });
         const pointers = Array.from(activePointersRef.current.values());
 
@@ -1032,7 +1067,6 @@
       };
 
       const handlePreviewPointerMove = (e) => {
-        // Xử lý kéo chữ
         if (isDraggingTextRef.current && activeSubId) {
           const canvas = canvasRef.current;
           if (!canvas) return;
@@ -1050,7 +1084,6 @@
           return;
         }
 
-        // Xử lý Pan / Pinch
         if (!activePointersRef.current.has(e.pointerId)) return;
         activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
         const pointers = Array.from(activePointersRef.current.values());
@@ -1094,7 +1127,6 @@
         }
       };
 
-      // Tương tác Timeline
       const handleTimelinePointerDown = (e) => {
         pauseVideo();
         isTimelineDraggingRef.current = true;
@@ -1134,7 +1166,6 @@
         }
       };
 
-      // Trim video clip
       const handleTrimPointerDown = (e, handleType, clip) => {
         e.stopPropagation();
         e.preventDefault();
@@ -1205,7 +1236,6 @@
         }
       };
 
-      // Tách clip tại Playhead
       const handleSplitClipAtPlayhead = () => {
         const t = currentTimeRef.current;
         const info = getCurrentClipInfo(t);
@@ -1249,7 +1279,6 @@
         showToast('🐾 Đã tách clip! Sẵn sàng gán chuyển tiếp.');
       };
 
-      // Trim Subtitle
       const handleSubTrimPointerDown = (e, handleType, sub) => {
         e.stopPropagation();
         e.preventDefault();
@@ -1304,7 +1333,6 @@
         }
       };
 
-      // Mẫu MatrixAuto Cắt Sẵn
       const applyMatrixTemplate = async (customVideoFile = null) => {
         const url = customVideoFile ? URL.createObjectURL(customVideoFile) : SAMPLE_WW_VIDEO;
         const name = customVideoFile ? customVideoFile.name : 'Neko_Combat_Sample.mp4';
@@ -1326,7 +1354,7 @@
           speed: 0.85,
           colorFilter: 'high-contrast',
           transition: 'flash',
-          transitionDuration: 0.4,
+          transitionDuration: 0.45,
           animIn: 'zoom_in',
           animInDur: 0.45,
           animOut: 'flash_out',
@@ -1345,7 +1373,7 @@
           speed: 1.0,
           colorFilter: chosenStyle.id,
           transition: 'zoom',
-          transitionDuration: 0.45,
+          transitionDuration: 0.5,
           animIn: 'none',
           animInDur: 0.4,
           animOut: 'fade_out',
@@ -1385,7 +1413,6 @@
         showToast(`🐾 MatrixAuto sẵn sàng: ${trueDuration.toFixed(1)}s`);
       };
 
-      // Xuất Video MP4 / WebM
       const handleExportMP4 = async () => {
         if (videoClips.length === 0 || isExporting) return;
         pauseVideo();
@@ -1681,7 +1708,6 @@
           {currentPage === 'editor' && (
             <div className="flex flex-col h-full w-full overflow-hidden">
               
-              {/* Header Editor */}
               <header className="h-12 px-3 pt-1 flex items-center justify-between z-30 shrink-0 bg-[#09090e] border-b border-white/[0.06]">
                 <div className="flex items-center gap-2.5">
                   <button
@@ -1759,7 +1785,6 @@
                 </div>
               </header>
 
-              {/* Màn hình Preview Video Canvas - Có Kéo Thả Chữ Trực Tiếp */}
               <main
                 onPointerDown={handlePreviewPointerDown}
                 onPointerMove={handlePreviewPointerMove}
@@ -1792,7 +1817,6 @@
                 </div>
               </main>
 
-              {/* Controls bar */}
               <div className="h-10 px-4 flex items-center justify-between text-zinc-400 border-t border-white/[0.06] bg-[#0c0c12] shrink-0 z-20">
                 <button
                   onClick={() => {
@@ -1824,7 +1848,6 @@
                 </div>
               </div>
 
-              {/* THANH QUICK-ACTION NỔI KHI CHỌN CHỮ */}
               {activeSub && (
                 <div className="h-8 bg-[#161324] border-t border-b border-pink-500/30 flex items-center justify-between px-3 text-[11px] font-bold text-zinc-200 shrink-0 z-20">
                   <span className="text-pink-400 truncate max-w-[120px]">
@@ -1888,10 +1911,8 @@
                 </div>
               )}
 
-              {/* TIMELINE TRACKS */}
               <div className="h-44 bg-[#101016] border-t border-b border-white/[0.08] flex relative shrink-0">
                 
-                {/* Cột trái */}
                 <div className="w-24 bg-[#0d0d13] border-r border-white/[0.08] flex flex-col justify-between py-2 px-1 z-20 shrink-0 select-none">
                   <div className="text-[10px] font-mono text-zinc-400 font-medium px-1">
                     <span className="text-white font-bold">{formatTimeCode(currentTime)}</span>
@@ -1938,7 +1959,6 @@
                   </div>
                 </div>
 
-                {/* Timeline Cuộn */}
                 <div
                   className="flex-1 relative overflow-hidden flex flex-col cursor-pointer"
                   onPointerDown={handleTimelinePointerDown}
@@ -1964,7 +1984,6 @@
                       }}
                       className="relative flex flex-col justify-between h-full select-none"
                     >
-                      {/* Thước thời gian */}
                       <div className="h-6 flex items-center text-[9px] font-mono text-zinc-400 border-b border-white/[0.06] select-none">
                         {[...Array(Math.max(1, Math.ceil(totalDuration) + 8))].map((_, i) => (
                           <div
@@ -1985,7 +2004,6 @@
                         ))}
                       </div>
 
-                      {/* Track 1: Clips */}
                       <div className="h-14 flex items-center gap-0">
                         {videoClips.map((clip, idx) => {
                           const effDur = clip.duration / (clip.speed || 1.0);
@@ -2126,7 +2144,6 @@
                         </label>
                       </div>
 
-                      {/* Track 2: Audio */}
                       <div className="h-7 flex items-center gap-2">
                         {audioClips.map((aud) => (
                           <div key={aud.id} className="text-[10px] text-pink-300 flex items-center gap-1.5 bg-pink-950/40 px-2.5 py-1 rounded-md border border-pink-800/40 shrink-0">
@@ -2164,7 +2181,6 @@
                         </label>
                       </div>
 
-                      {/* Track 3: Subtitles / Chữ */}
                       <div className="h-7 relative flex items-center">
                         {subtitles.map((sub) => {
                           const subLeft = sub.start * timelineZoom;
@@ -2241,7 +2257,6 @@
                 </div>
               </div>
 
-              {/* Thanh công cụ dưới cùng */}
               <footer className="h-16 px-2 flex items-center justify-around bg-[#08080c] border-t border-white/[0.06] shrink-0 z-30">
                 {activeClip ? (
                   <div className="flex items-center justify-between w-full px-2 overflow-x-auto no-scrollbar">
@@ -2367,7 +2382,6 @@
                 )}
               </footer>
 
-              {/* Volume Drawer */}
               {showVolumeDrawer && (
                 <div className="fixed inset-x-0 bottom-0 z-50 bg-[#121218] border-t border-white/[0.1] rounded-t-2xl p-4 shadow-2xl animate-in slide-in-from-bottom duration-200">
                   <div className="flex items-center justify-between pb-3 mb-4">
@@ -2443,7 +2457,6 @@
                 </div>
               )}
 
-              {/* Drawer Chuyển Tiếp Khe Nối */}
               {showTransitionDrawer && (
                 <div className="fixed inset-x-0 bottom-0 z-50 bg-[#121218] border-t border-pink-500/30 rounded-t-2xl p-4 shadow-2xl animate-in slide-in-from-bottom duration-200">
                   <div className="flex items-center justify-between pb-3 mb-2 border-b border-white/[0.08]">
@@ -2539,7 +2552,6 @@
                 </div>
               )}
 
-              {/* Drawer Động Thái Vào & Ra */}
               {showAnimDrawer && activeClip && (
                 <div className="fixed inset-x-0 bottom-0 z-50 bg-[#121218] border-t border-pink-500/30 rounded-t-2xl p-4 shadow-2xl animate-in slide-in-from-bottom duration-200">
                   <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.08]">
@@ -2639,7 +2651,6 @@
                 </div>
               )}
 
-              {/* Tool Sheet Phụ */}
               {showToolSheet && (
                 <div className="fixed inset-x-0 bottom-0 z-50 bg-[#121218] border-t border-white/[0.1] rounded-t-2xl p-4 shadow-2xl max-h-[56vh] overflow-y-auto neko-scroll animate-in slide-in-from-bottom duration-200">
                   <div className="flex items-center justify-between border-b border-white/[0.08] pb-2 mb-3">
@@ -2654,7 +2665,6 @@
                     </button>
                   </div>
 
-                  {/* Bộ Lọc */}
                   {activeBottomMenu === 'filter' && (
                     <div className="grid grid-cols-2 gap-2">
                       {FILTERS.map((filt) => (
@@ -2684,7 +2694,6 @@
                     </div>
                   )}
 
-                  {/* Hiệu Ứng */}
                   {activeBottomMenu === 'effects' && (
                     <div className="grid grid-cols-2 gap-2">
                       {TRANSITIONS.map((trans) => (
@@ -2711,10 +2720,8 @@
                     </div>
                   )}
 
-                  {/* VĂN BẢN & PHỤ ĐỀ NÂNG CẤP */}
                   {activeBottomMenu === 'text' && (
                     <div className="space-y-4">
-                      {/* Thêm Chữ Mới */}
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -2751,7 +2758,6 @@
                         </button>
                       </div>
 
-                      {/* Tùy Biến Chữ Đang Chọn */}
                       {activeSub && (
                         <div className="p-3 rounded-xl bg-zinc-900/90 border border-pink-500/40 space-y-3">
                           <div className="text-[11px] font-bold text-pink-300 flex items-center justify-between">
@@ -2759,7 +2765,6 @@
                             <span className="text-[9px] text-zinc-400">Tọa độ: {Math.round((activeSub.x || 0.5)*100)}%, {Math.round((activeSub.y || 0.82)*100)}%</span>
                           </div>
 
-                          {/* Chọn Animation Chữ */}
                           <div className="space-y-1">
                             <label className="text-[10px] text-zinc-400 font-bold">Hiệu ứng chuyển động:</label>
                             <div className="grid grid-cols-3 gap-1.5">
@@ -2785,7 +2790,6 @@
                             </div>
                           </div>
 
-                          {/* Chỉnh Kích Thước Chữ */}
                           <div className="flex items-center justify-between text-xs text-zinc-300 pt-1">
                             <span>Cỡ chữ:</span>
                             <input
@@ -2804,7 +2808,6 @@
                             />
                           </div>
 
-                          {/* Chỉnh Độ Dày Viền */}
                           <div className="flex items-center justify-between text-xs text-zinc-300">
                             <span>Độ dày viền (Stroke):</span>
                             <input
@@ -2825,7 +2828,6 @@
                         </div>
                       )}
 
-                      {/* Mẫu Chữ Nghệ Thuật */}
                       <div className="space-y-2">
                         <div className="text-[11px] font-bold text-zinc-400">Chọn mẫu chữ nghệ thuật:</div>
                         <div className="grid grid-cols-2 gap-2">
@@ -2852,7 +2854,6 @@
                         </div>
                       </div>
 
-                      {/* Danh sách chữ hiện tại */}
                       <div className="space-y-2 pt-1 border-t border-white/[0.06]">
                         <div className="text-[11px] font-bold text-zinc-400">Các đoạn chữ trên video:</div>
                         {subtitles.length === 0 ? (
@@ -2892,7 +2893,6 @@
                     </div>
                   )}
 
-                  {/* Âm Thanh */}
                   {activeBottomMenu === 'audio' && (
                     <div className="space-y-3">
                       <label className="w-full py-3 px-4 rounded-xl bg-pink-500/20 border border-pink-500/40 text-pink-300 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95">
@@ -2926,7 +2926,6 @@
                     </div>
                   )}
 
-                  {/* Tốc Độ */}
                   {activeBottomMenu === 'edit' && activeClip && (
                     <div className="space-y-3">
                       <div className="space-y-1.5">
@@ -2956,7 +2955,6 @@
                 </div>
               )}
 
-              {/* MODAL ẢNH BÌA */}
               {showCoverModal && (
                 <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between animate-in fade-in duration-200 select-none">
                   <div className="h-12 px-4 flex items-center justify-between border-b border-white/[0.08] bg-[#0c0c12]">
@@ -3045,7 +3043,6 @@
                 </div>
               )}
 
-              {/* MODAL POPUP CHỌN 2S CỦA 15S CUỐI */}
               {showScoreSelectModal && (() => {
                 const targetClip = videoClips[0];
                 if (!targetClip) return null;
@@ -3165,7 +3162,6 @@
             </div>
           )}
 
-          {/* Modal MatrixAuto */}
           {showTemplateModal && (
             <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
               <div className="bg-[#121019] border-t sm:border border-white/[0.12] w-full max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[88vh] overflow-hidden shadow-2xl">
@@ -3263,7 +3259,6 @@
             </div>
           )}
 
-          {/* Toast thông báo */}
           {toastMsg && (
             <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#161622]/95 border border-pink-500/40 text-pink-200 px-4 py-2 rounded-xl shadow-2xl text-xs font-bold flex items-center gap-2 backdrop-blur-md whitespace-nowrap">
               <CatPawSvg className="w-4 h-4 text-pink-400" />
