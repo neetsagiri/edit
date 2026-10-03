@@ -177,7 +177,7 @@
       { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫️', desc: 'Hòa tan mềm mại' },
       { id: 'zoom', name: 'Phóng To Nhanh', icon: '🔍', desc: 'Đột phá khung hình' },
       { id: 'slide', name: 'Lướt Cạnh Trái', icon: '↔️', desc: 'Trượt ngang mượt mà' },
-      { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆', desc: 'Trượt dọc điện ảnh' },
+      { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆️', desc: 'Trượt dọc điện ảnh' },
       { id: 'flash', name: 'Chớp Sáng Trắng', icon: '⚡', desc: 'Chớp sáng phong cách anime' },
       { id: 'black_fade', name: 'Chớp Đen Noir', icon: '🌑', desc: 'Hạ đen kịch tính' },
       { id: 'glitch', name: 'Neko Glitch Matrix', icon: '👾', desc: 'Rung giật cyberpunk' }
@@ -188,7 +188,7 @@
       { id: 'fade_in', name: 'Mờ Dần Vào', icon: '🌅' },
       { id: 'zoom_in', name: 'Thu Phóng Vào', icon: '🔎' },
       { id: 'slide_in_left', name: 'Trượt Từ Trái', icon: '⬅️' },
-      { id: 'slide_in_right', name: 'Trượt Từ Phải', icon: '➡️️' },
+      { id: 'slide_in_right', name: 'Trượt Từ Phải', icon: '➡️' },
       { id: 'slide_in_up', name: 'Trượt Từ Dưới', icon: '⬆️' },
       { id: 'flash_in', name: 'Chớp Sáng Vào', icon: '✨' }
     ];
@@ -309,7 +309,6 @@
       const [coverTitleText, setCoverTitleText] = useState('NEKO MEOW COMBAT 🐾');
       const coverBackupTimeRef = useRef(0);
 
-      // Popup chọn 2s của 15s cuối (Dành riêng cho clip gắn cờ isScoreClip)
       const [showScoreSelectModal, setShowScoreSelectModal] = useState(false);
       const [scoreTrimWindowStart, setScoreTrimWindowStart] = useState(0);
       const scoreModalCanvasRef = useRef(null);
@@ -353,7 +352,6 @@
       const canvasRef = useRef(null);
       const coverCanvasRef = useRef(null);
       const hiddenVideoRef = useRef(null);
-      const hiddenVideoRef2 = useRef(null);
       const bgmAudioRef = useRef(null);
       const timelineScrollRef = useRef(null);
       const currentTimeRef = useRef(0);
@@ -362,8 +360,6 @@
       const isSystemScrolling = useRef(false);
       const animationFrameRef = useRef(null);
       const lastUiUpdateRef = useRef(0);
-
-      const vid2SyncLockRef = useRef({ isSynced: false, targetClipId: null });
 
       const exportAudioCtxRef = useRef(null);
       const vidSourceNodeRef = useRef(null);
@@ -374,7 +370,6 @@
         setTimeout(() => setToastMsg(''), 2200);
       };
 
-      // KHỞI TẠO DỰ ÁN MỚI THÔNG THƯỜNG: Tuyệt đối không gắn cờ isScoreClip
       const handleCreateNewProject = async (file = null) => {
         playNekoSound('click');
         let newUrl = SAMPLE_WW_VIDEO;
@@ -404,7 +399,7 @@
           animOut: 'none',
           animOutDur: 0.5,
           volume: 1.0,
-          isScoreClip: false // Khởi tạo bình thường, không phải MatrixAuto
+          isScoreClip: false
         };
 
         setProjectTitle(newName.replace(/\.[^/.]+$/, ""));
@@ -424,12 +419,6 @@
           vid.pause();
           vid.src = newUrl;
           vid.load();
-        }
-        const vid2 = hiddenVideoRef2.current;
-        if (vid2) {
-          vid2.pause();
-          vid2.src = newUrl;
-          vid2.load();
         }
 
         if (timelineScrollRef.current) timelineScrollRef.current.scrollLeft = 0;
@@ -456,6 +445,7 @@
         return subtitles.find((s) => s.id === activeSubId) || null;
       }, [subtitles, activeSubId]);
 
+      // TÍNH TOÁN VỊ TRÍ CLIP CHUẨN XÁC: Ranh giới độc lập tuyệt đối
       const getCurrentClipInfo = useCallback(
         (time) => {
           let acc = 0;
@@ -468,30 +458,13 @@
               const timelineOffset = time - acc;
               const sourceOffset = timelineOffset * spd;
 
-              let prevClipData = null;
-              const transDur = c.transitionDuration || 0.45;
-
-              if (i > 0 && timelineOffset < transDur && c.transition !== 'none') {
-                const prevC = videoClips[i - 1];
-                const prevSpd = prevC.speed || 1.0;
-                const prevEffDur = prevC.duration / prevSpd;
-                const prevTimelineOffset = Math.max(0, prevEffDur - (transDur - timelineOffset));
-                prevClipData = {
-                  clip: prevC,
-                  clipIndex: i - 1,
-                  mediaSourceTime: prevC.trimStart + (prevTimelineOffset * prevSpd),
-                  speed: prevSpd
-                };
-              }
-
               return {
                 clip: c,
                 clipIndex: i,
                 clipStartTime: acc,
                 clipOffsetTime: timelineOffset,
                 effectiveDuration: effectiveDur,
-                mediaSourceTime: c.trimStart + sourceOffset,
-                prevClipData
+                mediaSourceTime: c.trimStart + sourceOffset
               };
             }
             acc += effectiveDur;
@@ -509,8 +482,7 @@
               clipStartTime: lastStart,
               clipOffsetTime: timelineOffset,
               effectiveDuration: effDur,
-              mediaSourceTime: last.trimStart + (timelineOffset * spd),
-              prevClipData: null
+              mediaSourceTime: last.trimStart + (timelineOffset * spd)
             };
           }
           return null;
@@ -531,10 +503,10 @@
         return { x: drawX, y: drawY, w: drawW, h: drawH };
       };
 
+      // VẼ FRAME ĐỒNG BỘ: Không để video sau dính đè khung hình video trước
       const drawFrameToContext = useCallback(
         (ctx, targetW, targetH, time) => {
           const vid = hiddenVideoRef.current;
-          const vid2 = hiddenVideoRef2.current;
           const clipInfo = getCurrentClipInfo(time);
 
           ctx.fillStyle = '#050508';
@@ -542,15 +514,11 @@
 
           if (!clipInfo || !vid || vid.readyState < 2) return;
 
-          const { clip, clipOffsetTime, effectiveDuration, prevClipData } = clipInfo;
+          const { clip, clipOffsetTime, effectiveDuration } = clipInfo;
           const transDur = clip.transitionDuration || 0.45;
           const inDur = clip.animInDur || 0.5;
           const outDur = clip.animOutDur || 0.5;
           const timeLeft = Math.max(0, effectiveDuration - clipOffsetTime);
-
-          const isTransitioning = prevClipData && clipOffsetTime < transDur && clip.transition !== 'none';
-          const rawProgress = isTransitioning ? Math.max(0, Math.min(1, clipOffsetTime / transDur)) : 1;
-          const easeProgress = easeInOutCubic(rawProgress);
 
           const zoom = previewZoomRef.current || 1.0;
           const pan = previewPanRef.current || { x: 0, y: 0 };
@@ -558,48 +526,6 @@
           const panScaleY = targetH / (selectedRatio.h || 1);
           const basePan = { x: pan.x * panScaleX, y: pan.y * panScaleY };
 
-          // 1. Layer Clip Liền Trước
-          if (isTransitioning && vid2 && vid2.readyState >= 2) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, 0, targetW, targetH);
-            ctx.clip();
-
-            let prevAlpha = 1.0;
-            let prevScale = 1.0;
-            let prevTransX = 0;
-            let prevTransY = 0;
-
-            if (clip.transition === 'fade') {
-              prevAlpha = 1.0 - easeProgress;
-            } else if (clip.transition === 'zoom') {
-              prevScale = 1.0 + easeProgress * 0.35;
-              prevAlpha = 1.0 - easeProgress;
-            } else if (clip.transition === 'slide') {
-              prevTransX = -easeProgress * targetW;
-            } else if (clip.transition === 'slide_up') {
-              prevTransY = -easeProgress * targetH;
-            } else if (clip.transition === 'black_fade') {
-              prevAlpha = rawProgress < 0.5 ? (1.0 - rawProgress * 2) : 0;
-            }
-
-            ctx.globalAlpha = Math.max(0, Math.min(1, prevAlpha));
-            const filterPrev = FILTERS.find((f) => f.id === prevClipData.clip.colorFilter) || FILTERS[0];
-            ctx.filter = (filterPrev && filterPrev.css && filterPrev.css !== 'none') ? filterPrev.css : 'none';
-
-            const dimsPrev = getDrawDimensions(
-              vid2,
-              targetW,
-              targetH,
-              fitMode,
-              zoom * prevScale,
-              { x: basePan.x + prevTransX, y: basePan.y + prevTransY }
-            );
-            ctx.drawImage(vid2, dimsPrev.x, dimsPrev.y, dimsPrev.w, dimsPrev.h);
-            ctx.restore();
-          }
-
-          // 2. Layer Clip Hiện Tại
           ctx.save();
           ctx.beginPath();
           ctx.rect(0, 0, targetW, targetH);
@@ -613,25 +539,30 @@
           let curTransX = 0;
           let curTransY = 0;
 
-          if (isTransitioning) {
+          // 1. Hiệu Ứng Chuyển Tiếp Tại Đầu Clip (Transition In-Place)
+          if (clip.transition && clip.transition !== 'none' && clipOffsetTime < transDur) {
+            const rawProgress = Math.max(0, Math.min(1, clipOffsetTime / transDur));
+            const easeProgress = easeInOutCubic(rawProgress);
+
             if (clip.transition === 'fade') {
               curAlpha = easeProgress;
             } else if (clip.transition === 'zoom') {
-              curScale = 0.7 + easeProgress * 0.3;
+              curScale = 0.5 + easeProgress * 0.5;
               curAlpha = easeProgress;
             } else if (clip.transition === 'slide') {
               curTransX = (1.0 - easeProgress) * targetW;
             } else if (clip.transition === 'slide_up') {
               curTransY = (1.0 - easeProgress) * targetH;
             } else if (clip.transition === 'black_fade') {
-              curAlpha = rawProgress < 0.5 ? 0 : (rawProgress - 0.5) * 2;
+              curAlpha = rawProgress < 0.4 ? 0 : (rawProgress - 0.4) / 0.6;
             } else if (clip.transition === 'glitch') {
               curTransX = (Math.random() - 0.5) * 22 * (1.0 - easeProgress);
               curTransY = (Math.random() - 0.5) * 14 * (1.0 - easeProgress);
             }
           }
 
-          if (!isTransitioning && clip.animIn && clip.animIn !== 'none' && clipOffsetTime < inDur) {
+          // 2. Anim In
+          if ((!clip.transition || clip.transition === 'none' || clipOffsetTime >= transDur) && clip.animIn && clip.animIn !== 'none' && clipOffsetTime < inDur) {
             const pIn = easeInOutCubic(clipOffsetTime / inDur);
             if (clip.animIn === 'fade_in') curAlpha = Math.min(curAlpha, pIn);
             else if (clip.animIn === 'zoom_in') curScale *= (0.4 + pIn * 0.6);
@@ -640,6 +571,7 @@
             else if (clip.animIn === 'slide_in_up') curTransY += (1.0 - pIn) * targetH * 0.6;
           }
 
+          // 3. Anim Out
           if (clip.animOut && clip.animOut !== 'none' && timeLeft < outDur) {
             const pOut = easeInOutCubic(timeLeft / outDur);
             if (clip.animOut === 'fade_out') curAlpha = Math.min(curAlpha, pOut);
@@ -661,18 +593,20 @@
           );
           ctx.drawImage(vid, dimsCur.x, dimsCur.y, dimsCur.w, dimsCur.h);
 
-          if (isTransitioning && clip.transition === 'flash') {
-            ctx.fillStyle = `rgba(255,255,255,${Math.max(0, 1.0 - rawProgress * 1.5)})`;
+          // Flash trắng anime
+          if (clip.transition === 'flash' && clipOffsetTime < transDur) {
+            const flashProgress = clipOffsetTime / transDur;
+            ctx.fillStyle = `rgba(255,255,255,${Math.max(0, 1.0 - flashProgress * 1.6)})`;
             ctx.fillRect(0, 0, targetW, targetH);
           }
-          if (clip.animIn === 'flash_in' && !isTransitioning && clipOffsetTime < inDur) {
+          if (clip.animIn === 'flash_in' && clipOffsetTime < inDur) {
             ctx.fillStyle = `rgba(255,255,255,${Math.max(0, (1.0 - clipOffsetTime / inDur) * 0.85)})`;
             ctx.fillRect(0, 0, targetW, targetH);
           }
 
           ctx.restore();
 
-          // 3. Phụ đề & Chữ
+          // 4. Phụ đề & Chữ
           textBoxesRef.current.clear();
 
           subtitles.forEach((sub) => {
@@ -805,7 +739,6 @@
 
           const info = getCurrentClipInfo(clamped);
           const vid = hiddenVideoRef.current;
-          const vid2 = hiddenVideoRef2.current;
 
           if (info && vid) {
             activeClipIdRef.current = info.clip.id;
@@ -817,16 +750,6 @@
             }
             vid.playbackRate = info.clip.speed || 1.0;
             vid.volume = isMuted ? 0 : (info.clip.volume ?? 1.0);
-
-            if (info.prevClipData && vid2) {
-              if (vid2.src !== info.prevClipData.clip.url) {
-                vid2.src = info.prevClipData.clip.url;
-                vid2.load();
-              }
-              if (Math.abs(vid2.currentTime - info.prevClipData.mediaSourceTime) > 0.08) {
-                vid2.currentTime = info.prevClipData.mediaSourceTime;
-              }
-            }
 
             if (Math.abs(vid.currentTime - info.mediaSourceTime) > 0.04 || forceRender) {
               vid.currentTime = info.mediaSourceTime;
@@ -872,7 +795,6 @@
           bgm.play().catch(() => {});
         }
 
-        vid2SyncLockRef.current = { isSynced: false, targetClipId: null };
         isPlayingRef.current = true;
         setIsPlaying(true);
       };
@@ -881,7 +803,6 @@
         isPlayingRef.current = false;
         setIsPlaying(false);
         if (hiddenVideoRef.current) hiddenVideoRef.current.pause();
-        if (hiddenVideoRef2.current) hiddenVideoRef2.current.pause();
         if (bgmAudioRef.current) bgmAudioRef.current.pause();
       };
 
@@ -890,13 +811,13 @@
         else playVideo();
       };
 
+      // VÒNG LẶP PHÁT VIDEO CHUẨN XÁC: Khi hết clip lập tức nhảy sang clip kế
       useEffect(() => {
         if (currentPage !== 'editor') return;
 
         const loop = (now) => {
           if (isPlayingRef.current) {
             const vid = hiddenVideoRef.current;
-            const vid2 = hiddenVideoRef2.current;
             const currentClipId = activeClipIdRef.current;
             const curIdx = videoClips.findIndex((c) => c.id === currentClipId);
             const activeIdx = curIdx >= 0 ? curIdx : 0;
@@ -907,6 +828,7 @@
               const clipSourceEnd = curClip.trimStart + curClip.duration;
               const curSourceTime = vid.currentTime;
 
+              // Chạm mốc kết thúc clip
               if (curSourceTime >= clipSourceEnd - 0.03) {
                 if (activeIdx < videoClips.length - 1) {
                   const nextClip = videoClips[activeIdx + 1];
@@ -920,9 +842,9 @@
                     vid.load();
                   }
                   vid.playbackRate = nextSpd;
+                  // Đặt chuẩn xác thời gian bắt đầu của clip sau
                   vid.currentTime = nextClip.trimStart;
                   vid.play().catch(() => {});
-                  vid2SyncLockRef.current = { isSynced: false, targetClipId: null };
                 } else {
                   pauseVideo();
                   seekTo(totalDuration, true);
@@ -937,30 +859,6 @@
                 const exactTimelineTime = Math.min(totalDuration, clipStartTime + elapsedSourceInClip / spd);
 
                 currentTimeRef.current = exactTimelineTime;
-
-                const info = getCurrentClipInfo(exactTimelineTime);
-                if (info && info.prevClipData && vid2) {
-                  if (vid2.src !== info.prevClipData.clip.url) {
-                    vid2.src = info.prevClipData.clip.url;
-                    vid2.load();
-                  }
-                  
-                  if (!vid2SyncLockRef.current.isSynced || vid2SyncLockRef.current.targetClipId !== info.prevClipData.clip.id) {
-                    vid2.playbackRate = info.prevClipData.speed || 1.0;
-                    vid2.currentTime = info.prevClipData.mediaSourceTime;
-                    vid2.play().catch(() => {});
-                    vid2SyncLockRef.current = { isSynced: true, targetClipId: info.prevClipData.clip.id };
-                  } else {
-                    if (Math.abs(vid2.currentTime - info.prevClipData.mediaSourceTime) > 0.25) {
-                      vid2.currentTime = info.prevClipData.mediaSourceTime;
-                    }
-                  }
-                } else {
-                  if (vid2 && !vid2.paused) {
-                    vid2.pause();
-                  }
-                  vid2SyncLockRef.current = { isSynced: false, targetClipId: null };
-                }
 
                 if (timelineScrollRef.current) {
                   isSystemScrolling.current = true;
@@ -1321,7 +1219,6 @@
         }
       };
 
-      // MẪU MATRIXAUTO CẮT SẴN (Chỉ nơi này mới gán cờ isScoreClip: true)
       const applyMatrixTemplate = async (customVideoFile = null) => {
         const url = customVideoFile ? URL.createObjectURL(customVideoFile) : SAMPLE_WW_VIDEO;
         const name = customVideoFile ? customVideoFile.name : 'Neko_Combat_Sample.mp4';
@@ -1349,7 +1246,7 @@
           animOut: 'flash_out',
           animOutDur: 0.3,
           volume: 1.0,
-          isScoreClip: true // DUY NHẤT MATRIXAUTO CÓ CỜ NÀY
+          isScoreClip: true
         };
 
         const combatClip = {
@@ -1389,12 +1286,6 @@
           vid.pause();
           vid.src = url;
           vid.load();
-        }
-        const vid2 = hiddenVideoRef2.current;
-        if (vid2) {
-          vid2.pause();
-          vid2.src = url;
-          vid2.load();
         }
 
         setCurrentPage('editor');
@@ -1523,7 +1414,7 @@
             vid.src = info.clip.url;
             vid.load();
           }
-          if (info && vid.currentTime !== info.mediaSourceTime) {
+          if (info && Math.abs(vid.currentTime - info.mediaSourceTime) > 0.08) {
             vid.currentTime = info.mediaSourceTime;
           }
 
@@ -1549,13 +1440,6 @@
             crossOrigin="anonymous"
             onLoadedMetadata={() => renderCanvasFrame(currentTimeRef.current)}
             onError={() => showToast('🐾 Lỗi tải video mẫu, vui lòng chọn file từ thiết bị')}
-          />
-          <video
-            ref={hiddenVideoRef2}
-            className="hidden"
-            playsInline
-            muted={true}
-            crossOrigin="anonymous"
           />
 
           <audio
@@ -2013,7 +1897,6 @@
                                   setActiveSubId(null);
                                   playNekoSound('click');
 
-                                  // CHỈ MỞ POPUP NẾU LÀ CLIP MATRIX AUTO (isScoreClip: true)
                                   if (clip.isScoreClip) {
                                     setScoreTrimWindowStart(clip.trimStart);
                                     setShowScoreSelectModal(true);
@@ -3037,7 +2920,7 @@
                 </div>
               )}
 
-              {/* MODAL POPUP CHỌN 2S: CHỈ MỞ KHI LÀ MẪU MATRIXAUTO */}
+              {/* MODAL POPUP CHỌN 2S: CHỈ KÍCH HOẠT NẾU LÀ CLIP MATRIXAUTO */}
               {showScoreSelectModal && (() => {
                 const targetClip = videoClips.find(c => c.isScoreClip);
                 if (!targetClip) return null;
