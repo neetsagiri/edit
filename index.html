@@ -55,6 +55,9 @@
   <script type="text/babel">
     const { useState, useRef, useEffect, useCallback, useMemo } = React;
 
+    const DB_NAME = 'NekoCutDB';
+    const DB_STORE = 'projects';
+
     const playNekoSound = (type = 'click') => {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -101,6 +104,10 @@
           osc.stop(now + 0.04);
         }
       } catch (e) {}
+    };
+
+    const triggerHaptic = (ms = 15) => {
+      try { if (navigator.vibrate) navigator.vibrate(ms); } catch (_) {}
     };
 
     const CatPawSvg = ({ className = "w-4 h-4" }) => (
@@ -249,7 +256,6 @@
       return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
     };
 
-    // Fix triệt để lỗi treo Promise khi lấy duration của Blob URL
     const getExactVideoDuration = (videoUrl) => {
       return new Promise((resolve) => {
         const v = document.createElement('video');
@@ -272,6 +278,47 @@
         v.oncanplay = () => doResolve(v.duration);
         v.onerror = () => doResolve(15);
         setTimeout(() => doResolve(15), 3500);
+      });
+    };
+
+    // ĐỀ XUẤT 1: HÀM TRÍCH XUẤT THUMBNAIL THỰC TẾ CHO TIMELINE & POPUP
+    const generateVideoThumbnails = async (videoUrl, count = 8, startSec = 0, endSec = null) => {
+      return new Promise((resolve) => {
+        const v = document.createElement('video');
+        v.preload = 'metadata';
+        v.muted = true;
+        v.playsInline = true;
+        v.src = videoUrl;
+
+        v.onloadedmetadata = async () => {
+          const actualEnd = endSec && endSec <= v.duration ? endSec : v.duration;
+          const range = Math.max(1, actualEnd - startSec);
+          const thumbs = [];
+          const canvas = document.createElement('canvas');
+          canvas.width = 80;
+          canvas.height = 45;
+          const ctx = canvas.getContext('2d');
+
+          for (let i = 0; i < count; i++) {
+            const seekT = startSec + (i / count) * range;
+            v.currentTime = seekT;
+            await new Promise((res) => {
+              const onSeek = () => {
+                ctx.drawImage(v, 0, 0, 80, 45);
+                thumbs.push(canvas.toDataURL('image/jpeg', 0.65));
+                v.removeEventListener('seeked', onSeek);
+                res();
+              };
+              v.addEventListener('seeked', onSeek);
+              setTimeout(onSeek, 250);
+            });
+          }
+          v.src = '';
+          v.load();
+          resolve(thumbs);
+        };
+        v.onerror = () => resolve([]);
+        setTimeout(() => resolve([]), 4000);
       });
     };
 
@@ -324,9 +371,14 @@
       const [coverTitleText, setCoverTitleText] = useState('NEKO MEOW COMBAT 🐾');
       const coverBackupTimeRef = useRef(0);
 
+      // ĐỀ XUẤT 3: FILMSTRIP THỰC TẾ CHO POPUP 15S MATRIXAUTO
       const [showScoreSelectModal, setShowScoreSelectModal] = useState(false);
       const [scoreTrimWindowStart, setScoreTrimWindowStart] = useState(0);
+      const [matrixThumbnails, setMatrixThumbnails] = useState([]);
       const scoreModalCanvasRef = useRef(null);
+
+      // ĐỀ XUẤT 4: ANIME SPEED LINES
+      const [enableSpeedLines, setEnableSpeedLines] = useState(true);
 
       const isTrimmingRef = useRef(false);
       const trimDataRef = useRef({ handle: null, clipId: null, startX: 0, initTrimStart: 0, initDuration: 0, sourceDur: 0, speed: 1.0 });
@@ -337,6 +389,10 @@
       const isTimelineDraggingRef = useRef(false);
       const timelineDragDataRef = useRef({ startX: 0, startScrollLeft: 0, isMoved: false });
 
+      // ĐỀ XUẤT 2: TIMELINE PINCH ZOOM & SNAP
+      const [timelineZoom, setTimelineZoom] = useState(64);
+      const timelinePinchRef = useRef({ isPinching: false, initDist: 0, initZoom: 64 });
+
       const [showTemplateModal, setShowTemplateModal] = useState(false);
       const [selectedStyleId, setSelectedStyleId] = useState('crisp');
       const [autoScoreLoop, setAutoScoreLoop] = useState(true);
@@ -345,11 +401,13 @@
       const [subtitles, setSubtitles] = useState([]);
       const [activeSubId, setActiveSubId] = useState(null);
 
+      // Lưu trữ thumbnail thực tế của các clip
+      const [clipThumbnailsMap, setClipThumbnailsMap] = useState({});
+
       const textBoxesRef = useRef(new Map());
       const isDraggingTextRef = useRef(false);
       const textDragStartRef = useRef({ x: 0, y: 0, initialSubX: 0.5, initialSubY: 0.82 });
 
-      const [timelineZoom] = useState(64);
       const [activeBottomMenu, setActiveBottomMenu] = useState('edit');
       const [showToolSheet, setShowToolSheet] = useState(false);
       const [isExporting, setIsExporting] = useState(false);
@@ -375,6 +433,7 @@
       const isSystemScrolling = useRef(false);
       const animationFrameRef = useRef(null);
       const lastUiUpdateRef = useRef(0);
+      const lastPlayedIndexRef = useRef(0);
 
       const exportAudioCtxRef = useRef(null);
       const vidSourceNodeRef = useRef(null);
@@ -385,7 +444,40 @@
         setTimeout(() => setToastMsg(''), 2200);
       };
 
-      // Tải và khởi tạo Video an toàn tuyệt đối
+      // ĐỀ XUẤT 5: TỰ ĐỘNG LƯU VÀ KHÔI PHỤC BẢN NHÁP (LOCALSTORAGE / INDEXEDDB)
+      useEffect(() => {
+        try {
+          const savedData = localStorage.getItem('NekoCut_Draft');
+          if (savedData) {
+            const parsed = JSON.parse(savedData);
+            if (parsed && parsed.videoClips && parsed.videoClips.length > 0) {
+              setVideoClips(parsed.videoClips);
+              setProjectTitle(parsed.projectTitle || 'NekoDự Án');
+              setSelectedRatio(parsed.selectedRatio || ASPECT_RATIOS[0]);
+              setSubtitles(parsed.subtitles || []);
+            }
+          }
+        } catch (_) {}
+      }, []);
+
+      useEffect(() => {
+        try {
+          const draft = {
+            projectTitle,
+            videoClips: videoClips.map(c => ({ ...c, url: c.url.startsWith('blob:') ? SAMPLE_WW_VIDEO : c.url })),
+            selectedRatio,
+            subtitles
+          };
+          localStorage.setItem('NekoCut_Draft', JSON.stringify(draft));
+        } catch (_) {}
+      }, [videoClips, projectTitle, selectedRatio, subtitles]);
+
+      // Sinh Thumbnails cho clip mới
+      const refreshClipThumbnails = async (clipId, url, dur) => {
+        const thumbs = await generateVideoThumbnails(url, 6, 0, dur);
+        setClipThumbnailsMap(prev => ({ ...prev, [clipId]: thumbs }));
+      };
+
       const handleCreateNewProject = async (file = null) => {
         playNekoSound('click');
         let newUrl = SAMPLE_WW_VIDEO;
@@ -433,7 +525,7 @@
         const vid = hiddenVideoRef.current;
         if (vid) {
           vid.pause();
-          vid.removeAttribute('crossorigin'); // Gỡ CORS để duyệt blob an toàn
+          vid.removeAttribute('crossorigin');
           vid.src = newUrl;
           vid.load();
           const onReady = () => {
@@ -444,6 +536,7 @@
         }
 
         if (timelineScrollRef.current) timelineScrollRef.current.scrollLeft = 0;
+        refreshClipThumbnails(newClip.id, newUrl, newDur);
         showToast(`Đã mở dự án: ${newDur.toFixed(1)}s`);
       };
 
@@ -457,6 +550,17 @@
       const totalDuration = useMemo(() => {
         const sum = videoClips.reduce((acc, c) => acc + (c.duration / (c.speed || 1.0)), 0);
         return Math.max(1, sum);
+      }, [videoClips]);
+
+      // Danh sách các mốc thời gian chuyển cảnh để làm Nam châm Snap
+      const snapPoints = useMemo(() => {
+        const pts = [0];
+        let acc = 0;
+        videoClips.forEach(c => {
+          acc += (c.duration / (c.speed || 1.0));
+          pts.push(acc);
+        });
+        return pts;
       }, [videoClips]);
 
       const activeClip = useMemo(() => {
@@ -524,7 +628,34 @@
         return { x: drawX, y: drawY, w: drawW, h: drawH };
       };
 
-      // VẼ CANVAS: Xử lý hiển thị chuẩn xác không bị đen màn hình
+      // ĐỀ XUẤT 4: VẼ ANIME SPEED LINES
+      const drawAnimeSpeedLines = (ctx, targetW, targetH) => {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 2.5;
+        const centerX = targetW / 2;
+        const centerY = targetH / 2;
+        const linesCount = 28;
+
+        for (let i = 0; i < linesCount; i++) {
+          const angle = (i / linesCount) * Math.PI * 2 + (Math.random() * 0.05);
+          const outerR = Math.max(targetW, targetH) * 0.75;
+          const innerR = Math.min(targetW, targetH) * (0.35 + Math.random() * 0.15);
+
+          const x1 = centerX + Math.cos(angle) * outerR;
+          const y1 = centerY + Math.sin(angle) * outerR;
+          const x2 = centerX + Math.cos(angle) * innerR;
+          const y2 = centerY + Math.sin(angle) * innerR;
+
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+        ctx.restore();
+      };
+
+      // VẼ CANVAS THỜI GIAN THỰC
       const drawFrameToContext = useCallback(
         (ctx, targetW, targetH, time) => {
           const vid = hiddenVideoRef.current;
@@ -565,18 +696,14 @@
             const rawProgress = Math.max(0, Math.min(1, clipOffsetTime / transDur));
             const easeProgress = easeInOutCubic(rawProgress);
 
-            if (clip.transition === 'fade') {
-              curAlpha = easeProgress;
-            } else if (clip.transition === 'zoom') {
+            if (clip.transition === 'fade') curAlpha = easeProgress;
+            else if (clip.transition === 'zoom') {
               curScale = 0.55 + easeProgress * 0.45;
               curAlpha = easeProgress;
-            } else if (clip.transition === 'slide') {
-              curTransX = (1.0 - easeProgress) * targetW;
-            } else if (clip.transition === 'slide_up') {
-              curTransY = (1.0 - easeProgress) * targetH;
-            } else if (clip.transition === 'black_fade') {
-              curAlpha = rawProgress < 0.35 ? 0 : (rawProgress - 0.35) / 0.65;
-            } else if (clip.transition === 'glitch') {
+            } else if (clip.transition === 'slide') curTransX = (1.0 - easeProgress) * targetW;
+            else if (clip.transition === 'slide_up') curTransY = (1.0 - easeProgress) * targetH;
+            else if (clip.transition === 'black_fade') curAlpha = rawProgress < 0.35 ? 0 : (rawProgress - 0.35) / 0.65;
+            else if (clip.transition === 'glitch') {
               curTransX = (Math.random() - 0.5) * 22 * (1.0 - easeProgress);
               curTransY = (Math.random() - 0.5) * 14 * (1.0 - easeProgress);
             }
@@ -614,6 +741,7 @@
           );
           ctx.drawImage(vid, dimsCur.x, dimsCur.y, dimsCur.w, dimsCur.h);
 
+          // Flash
           if (clip.transition === 'flash' && clipOffsetTime < transDur) {
             const flashProgress = clipOffsetTime / transDur;
             ctx.fillStyle = `rgba(255,255,255,${Math.max(0, 1.0 - flashProgress * 1.6)})`;
@@ -624,9 +752,14 @@
             ctx.fillRect(0, 0, targetW, targetH);
           }
 
+          // Vẽ Speed Lines khi là phân đoạn Combat hoặc chuyển cảnh bùng nổ
+          if (enableSpeedLines && (clip.speed > 1.0 || (clip.transition && clipOffsetTime < transDur))) {
+            drawAnimeSpeedLines(ctx, targetW, targetH);
+          }
+
           ctx.restore();
 
-          // Vẽ Chữ
+          // Vẽ Chữ Nghệ Thuật
           textBoxesRef.current.clear();
 
           subtitles.forEach((sub) => {
@@ -737,7 +870,7 @@
             }
           });
         },
-        [getCurrentClipInfo, subtitles, fitMode, selectedRatio, activeSubId]
+        [getCurrentClipInfo, subtitles, fitMode, selectedRatio, activeSubId, enableSpeedLines]
       );
 
       const renderCanvasFrame = useCallback(
@@ -751,9 +884,22 @@
         [drawFrameToContext]
       );
 
+      // ĐỀ XUẤT 2: SEEK KÈM SNAP NAM CHÂM & HAPTIC
       const seekTo = useCallback(
-        (targetTime, forceRender = false) => {
-          const clamped = Math.max(0, Math.min(totalDuration, targetTime));
+        (targetTime, forceRender = false, enableSnap = true) => {
+          let clamped = Math.max(0, Math.min(totalDuration, targetTime));
+
+          // Nam châm hít (Snap) vào mốc nối
+          if (enableSnap) {
+            for (const pt of snapPoints) {
+              if (Math.abs(clamped - pt) < 0.12 && clamped !== pt) {
+                clamped = pt;
+                triggerHaptic(12);
+                break;
+              }
+            }
+          }
+
           currentTimeRef.current = clamped;
           setCurrentTime(clamped);
 
@@ -786,7 +932,7 @@
             renderCanvasFrame(clamped);
           }
         },
-        [totalDuration, getCurrentClipInfo, renderCanvasFrame, isMuted]
+        [totalDuration, getCurrentClipInfo, renderCanvasFrame, isMuted, snapPoints]
       );
 
       const playVideo = () => {
@@ -796,7 +942,7 @@
         const bgm = bgmAudioRef.current;
 
         if (currentTimeRef.current >= totalDuration - 0.08) {
-          seekTo(0, true);
+          seekTo(0, true, false);
         }
 
         const info = getCurrentClipInfo(currentTimeRef.current);
@@ -809,6 +955,7 @@
           vid.currentTime = info.mediaSourceTime;
           vid.volume = isMuted ? 0 : (info.clip.volume ?? 1.0);
           vid.play().catch(() => {});
+          lastPlayedIndexRef.current = info.clipIndex;
         }
 
         if (bgm && audioClips.length > 0) {
@@ -831,6 +978,7 @@
         else playVideo();
       };
 
+      // Vòng lặp phát video
       useEffect(() => {
         if (currentPage !== 'editor') return;
 
@@ -855,6 +1003,11 @@
                   activeClipIdRef.current = nextClip.id;
                   setActiveClipId(nextClip.id);
 
+                  // ĐỀ XUẤT 4: Tự động kích hoạt âm thanh nổ chuyển cảnh (Split/Slash Sound)
+                  if (nextClip.transition && nextClip.transition !== 'none') {
+                    playNekoSound('split');
+                  }
+
                   if (vid.src !== nextClip.url) {
                     vid.src = nextClip.url;
                     vid.load();
@@ -864,7 +1017,7 @@
                   vid.play().catch(() => {});
                 } else {
                   pauseVideo();
-                  seekTo(totalDuration, true);
+                  seekTo(totalDuration, true, false);
                 }
               } else {
                 let clipStartTime = 0;
@@ -902,6 +1055,7 @@
         };
       }, [currentPage, videoClips, totalDuration, timelineZoom, renderCanvasFrame, seekTo, getCurrentClipInfo]);
 
+      // Tương tác chạm & kéo thả chữ
       const handlePreviewPointerDown = (e) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -928,6 +1082,7 @@
         if (hitSubId) {
           isDraggingTextRef.current = true;
           setActiveSubId(hitSubId);
+          triggerHaptic(10);
           const found = subtitles.find((s) => s.id === hitSubId);
           textDragStartRef.current = {
             x: clientX,
@@ -1028,7 +1183,37 @@
         }
       };
 
+      // ĐỀ XUẤT 2: TIMELINE PINCH ZOOM BẰNG 2 NGÓN TAY
+      const handleTimelineTouchStart = (e) => {
+        if (e.touches.length === 2) {
+          timelinePinchRef.current.isPinching = true;
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          timelinePinchRef.current.initDist = dist;
+          timelinePinchRef.current.initZoom = timelineZoom;
+        }
+      };
+
+      const handleTimelineTouchMove = (e) => {
+        if (timelinePinchRef.current.isPinching && e.touches.length === 2) {
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const factor = dist / timelinePinchRef.current.initDist;
+          const newZ = Math.max(32, Math.min(140, Math.round(timelinePinchRef.current.initZoom * factor)));
+          setTimelineZoom(newZ);
+        }
+      };
+
+      const handleTimelineTouchEnd = () => {
+        timelinePinchRef.current.isPinching = false;
+      };
+
       const handleTimelinePointerDown = (e) => {
+        if (timelinePinchRef.current.isPinching) return;
         pauseVideo();
         isTimelineDraggingRef.current = true;
         timelineDragDataRef.current = {
@@ -1040,7 +1225,7 @@
       };
 
       const handleTimelinePointerMove = (e) => {
-        if (!isTimelineDraggingRef.current || !timelineScrollRef.current) return;
+        if (!isTimelineDraggingRef.current || !timelineScrollRef.current || timelinePinchRef.current.isPinching) return;
         const data = timelineDragDataRef.current;
         const deltaX = e.clientX - data.startX;
         if (Math.abs(deltaX) > 2) data.isMoved = true;
@@ -1048,7 +1233,7 @@
         const newScrollLeft = Math.max(0, Math.min(totalDuration * timelineZoom, data.startScrollLeft - deltaX));
         timelineScrollRef.current.scrollLeft = newScrollLeft;
         const computedTime = Math.max(0, Math.min(totalDuration, newScrollLeft / timelineZoom));
-        seekTo(computedTime, false);
+        seekTo(computedTime, false, true);
       };
 
       const handleTimelinePointerUp = (e) => {
@@ -1063,7 +1248,7 @@
         const scrollLeft = e.target.scrollLeft;
         const computedTime = Math.max(0, Math.min(totalDuration, scrollLeft / timelineZoom));
         if (Math.abs(computedTime - currentTimeRef.current) > 0.03) {
-          seekTo(computedTime, false);
+          seekTo(computedTime, false, false);
         }
       };
 
@@ -1072,6 +1257,7 @@
         e.preventDefault();
         pauseVideo();
         playNekoSound('click');
+        triggerHaptic(10);
 
         isTrimmingRef.current = true;
         trimDataRef.current = {
@@ -1133,7 +1319,7 @@
           isTrimmingRef.current = false;
           try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
           showToast('🐾 Đã tinh chỉnh độ dài clip');
-          seekTo(currentTimeRef.current, false);
+          seekTo(currentTimeRef.current, false, false);
         }
       };
 
@@ -1152,6 +1338,8 @@
         }
 
         playNekoSound('split');
+        triggerHaptic(20);
+
         const clip1 = { 
           ...clip, 
           duration: Number(sourceOffset.toFixed(2)) 
@@ -1186,6 +1374,7 @@
         e.preventDefault();
         pauseVideo();
         playNekoSound('click');
+        triggerHaptic(10);
 
         isSubTrimmingRef.current = true;
         subTrimDataRef.current = {
@@ -1307,6 +1496,8 @@
 
         setCurrentPage('editor');
         if (timelineScrollRef.current) timelineScrollRef.current.scrollLeft = 0;
+        refreshClipThumbnails(scoreClip.id, url, scoreDuration);
+        refreshClipThumbnails(combatClip.id, url, combatDuration);
         playNekoSound('success');
         showToast(`🐾 MatrixAuto sẵn sàng: ${trueDuration.toFixed(1)}s`);
       };
@@ -1402,7 +1593,7 @@
           setIsExporting(false);
           playNekoSound('success');
           showToast('🐾 Xuất video hoàn tất với đầy đủ âm thanh!');
-          seekTo(0, true);
+          seekTo(0, true, false);
         };
 
         recorder.start(100);
@@ -1411,7 +1602,7 @@
         const startTime = performance.now();
         const totalMs = totalDuration * 1000;
 
-        seekTo(0, true);
+        seekTo(0, true, false);
         vid.volume = isMuted ? 0 : (videoClips[0]?.volume ?? 1.0);
         vid.play().catch(() => {});
         if (bgm && audioClips.length > 0) {
@@ -1450,7 +1641,6 @@
       return (
         <div className="flex flex-col h-full w-full bg-[#050508] text-zinc-100 select-none overflow-hidden relative font-sans">
           
-          {/* Thẻ video duy nhất nạp nguồn chuẩn, tránh lỗi chặn blob CORS */}
           <video
             ref={hiddenVideoRef}
             className="hidden"
@@ -1624,11 +1814,18 @@
                     />
                   </div>
 
+                  {/* Toggle Speed Lines */}
                   <button
-                    onClick={() => showToast('🐾 Tìm kiếm hiệu ứng Neko')}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 active:scale-90"
+                    onClick={() => {
+                      setEnableSpeedLines(!enableSpeedLines);
+                      playNekoSound('click');
+                      showToast(enableSpeedLines ? 'Đã tắt Speed Lines' : 'Đã bật Speed Lines ⚡');
+                    }}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
+                      enableSpeedLines ? 'border-pink-500 bg-pink-950/40 text-pink-300' : 'border-zinc-700 text-zinc-400'
+                    }`}
                   >
-                    <SearchIcon className="w-5 h-5" />
+                    ⚡ VFX
                   </button>
                 </div>
 
@@ -1742,6 +1939,7 @@
                 </div>
               </div>
 
+              {/* THANH QUICK ACTION KHI CHỌN CHỮ */}
               {activeSub && (
                 <div className="h-8 bg-[#161324] border-t border-b border-pink-500/30 flex items-center justify-between px-3 text-[11px] font-bold text-zinc-200 shrink-0 z-20">
                   <span className="text-pink-400 truncate max-w-[120px]">
@@ -1805,8 +2003,13 @@
                 </div>
               )}
 
-              <div className="h-44 bg-[#101016] border-t border-b border-white/[0.08] flex relative shrink-0">
-                
+              {/* TIMELINE CÓ HỖ TRỢ PINCH ZOOM 2 NGÓN & SNAP */}
+              <div
+                onTouchStart={handleTimelineTouchStart}
+                onTouchMove={handleTimelineTouchMove}
+                onTouchEnd={handleTimelineTouchEnd}
+                className="h-44 bg-[#101016] border-t border-b border-white/[0.08] flex relative shrink-0"
+              >
                 <div className="w-24 bg-[#0d0d13] border-r border-white/[0.08] flex flex-col justify-between py-2 px-1 z-20 shrink-0 select-none">
                   <div className="text-[10px] font-mono text-zinc-400 font-medium px-1">
                     <span className="text-white font-bold">{formatTimeCode(currentTime)}</span>
@@ -1898,11 +2101,13 @@
                         ))}
                       </div>
 
+                      {/* Track 1: Video Clips có Filmstrip thực tế */}
                       <div className="h-14 flex items-center gap-0">
                         {videoClips.map((clip, idx) => {
                           const effDur = clip.duration / (clip.speed || 1.0);
                           const clipWidth = effDur * timelineZoom;
                           const isSelected = activeClipId === clip.id;
+                          const realThumbs = clipThumbnailsMap[clip.id] || [];
 
                           return (
                             <React.Fragment key={clip.id}>
@@ -1915,9 +2120,12 @@
                                   setActiveSubId(null);
                                   playNekoSound('click');
 
-                                  // CHỈ MỞ POPUP KHI THỰC SỰ LÀ MATRIXAUTO
                                   if (clip.isScoreClip) {
                                     setScoreTrimWindowStart(clip.trimStart);
+                                    // Tạo thumbnail cho Modal 2s của 15s cuối
+                                    const srcDur = clip.sourceDuration || totalDuration;
+                                    const startWin = Math.max(0, srcDur - 15);
+                                    generateVideoThumbnails(clip.url, 10, startWin, srcDur).then(res => setMatrixThumbnails(res));
                                     setShowScoreSelectModal(true);
                                   }
                                 }}
@@ -1946,16 +2154,21 @@
                                   </div>
                                 )}
 
-                                <div className="absolute inset-0 flex items-center overflow-hidden opacity-45 pointer-events-none">
-                                  {[...Array(Math.max(1, Math.ceil(clipWidth / 48)))].map((_, fIdx) => (
-                                    <div
-                                      key={fIdx}
-                                      className="w-12 h-full shrink-0 border-r border-black/40 bg-cover bg-center"
-                                      style={{
-                                        backgroundImage: `url('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=120&auto=format&fit=crop&q=80')`
-                                      }}
-                                    />
-                                  ))}
+                                {/* ĐỀ XUẤT 1: FILMSTRIP THỰC TẾ CỦA VIDEO */}
+                                <div className="absolute inset-0 flex items-center overflow-hidden opacity-55 pointer-events-none">
+                                  {realThumbs.length > 0 ? (
+                                    realThumbs.map((th, thIdx) => (
+                                      <div
+                                        key={thIdx}
+                                        className="h-full flex-1 shrink-0 bg-cover bg-center border-r border-black/30"
+                                        style={{ backgroundImage: `url('${th}')` }}
+                                      />
+                                    ))
+                                  ) : (
+                                    <div className="w-full h-full bg-[#1e1c29]/60 flex items-center justify-center text-[9px] text-zinc-500 font-mono">
+                                      Filmstrip Neko
+                                    </div>
+                                  )}
                                 </div>
 
                                 <div className="flex flex-col min-w-0 z-10 pointer-events-none pl-4">
@@ -2011,10 +2224,11 @@
                               if (f) {
                                 const url = URL.createObjectURL(f);
                                 const dur = await getExactVideoDuration(url);
+                                const newId = `clip_${Date.now()}`;
                                 setVideoClips((prev) => [
                                   ...prev,
                                   {
-                                    id: `clip_${Date.now()}`,
+                                    id: newId,
                                     name: f.name.substring(0, 16),
                                     url,
                                     sourceDuration: dur,
@@ -2032,6 +2246,7 @@
                                     isScoreClip: false
                                   }
                                 ]);
+                                refreshClipThumbnails(newId, url, dur);
                                 showToast(`🐾 Đã thêm clip ${dur.toFixed(1)}s`);
                               }
                             }}
@@ -2127,7 +2342,7 @@
                                   onPointerMove={handleSubTrimPointerMove}
                                   onPointerUp={handleSubTrimPointerUp}
                                   onPointerCancel={handleSubTrimPointerUp}
-                                  className="w-2.5 h-full -ml-1 bg-white rounded-r flex items-center justify-center cursor-ew-resize active:bg-pink-300"
+                                  className="w-2.5 h-full -mr-1 bg-white rounded-r flex items-center justify-center cursor-ew-resize active:bg-pink-300"
                                 >
                                   <div className="w-[2px] h-3 bg-black/80 rounded" />
                                 </div>
@@ -2857,7 +3072,7 @@
                     <button
                       onClick={() => {
                         setShowCoverModal(false);
-                        seekTo(coverBackupTimeRef.current, true);
+                        seekTo(coverBackupTimeRef.current, true, false);
                       }}
                       className="text-xs text-zinc-400 hover:text-white"
                     >
@@ -2874,7 +3089,7 @@
                           setCoverImage(snapshotUrl);
                         }
                         setShowCoverModal(false);
-                        seekTo(coverScrubTime, true);
+                        seekTo(coverScrubTime, true, false);
                         playNekoSound('success');
                         showToast('🐾 Đã lưu ảnh bìa Neko!');
                       }}
@@ -2931,7 +3146,7 @@
                       onChange={(e) => {
                         const val = parseFloat(e.target.value);
                         setCoverScrubTime(val);
-                        seekTo(val, true);
+                        seekTo(val, true, false);
                       }}
                       className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#ff2a7a]"
                     />
@@ -2939,7 +3154,7 @@
                 </div>
               )}
 
-              {/* MODAL POPUP CHỌN 2S: CHỈ KÍCH HOẠT NẾU LÀ CLIP MATRIXAUTO */}
+              {/* ĐỀ XUẤT 3: MODAL CHỌN 2S KÈM FILMSTRIP TRỰC QUAN CỦA 15S CUỐI */}
               {showScoreSelectModal && (() => {
                 const targetClip = videoClips.find(c => c.isScoreClip);
                 if (!targetClip) return null;
@@ -2947,13 +3162,15 @@
                 const windowMin = Math.max(0, srcDur - 15);
                 const windowMax = Math.max(windowMin, srcDur - 2);
 
+                const windowProgress = windowMax > windowMin ? (scoreTrimWindowStart - windowMin) / (windowMax - windowMin) : 0;
+
                 return (
                   <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between animate-in fade-in duration-200 select-none">
                     <div className="h-12 px-4 flex items-center justify-between border-b border-white/[0.08] bg-[#0c0c12]">
                       <button
                         onClick={() => {
                           setShowScoreSelectModal(false);
-                          seekTo(currentTimeRef.current, true);
+                          seekTo(currentTimeRef.current, true, false);
                         }}
                         className="text-xs text-zinc-400 hover:text-white"
                       >
@@ -2975,7 +3192,7 @@
                           setShowScoreSelectModal(false);
                           playNekoSound('success');
                           showToast(`🐾 Đã chọn đoạn 2s: ${scoreTrimWindowStart.toFixed(1)}s - ${(scoreTrimWindowStart + 2).toFixed(1)}s`);
-                          seekTo(0, true);
+                          seekTo(0, true, false);
                         }}
                         className="px-3.5 py-1 rounded-full bg-[#ff2a7a] text-white font-extrabold text-xs shadow-[0_0_12px_rgba(255,42,122,0.4)]"
                       >
@@ -3001,7 +3218,7 @@
                               }
                             }
                           }}
-                          className="max-h-[calc(100vh-300px)] max-w-full object-contain"
+                          className="max-h-[calc(100vh-320px)] max-w-full object-contain"
                           style={{ aspectRatio: selectedRatio.ratioCss }}
                         />
                       </div>
@@ -3015,7 +3232,27 @@
                         </span>
                       </div>
 
-                      <div className="relative pt-1">
+                      {/* FILMSTRIP THỰC TẾ 15S CUỐI KÈM KHUNG TRƯỢT */}
+                      <div className="relative h-14 w-full bg-zinc-900 rounded-xl overflow-hidden border border-white/10 flex items-center">
+                        <div className="absolute inset-0 flex items-center">
+                          {matrixThumbnails.map((th, thIdx) => (
+                            <div
+                              key={thIdx}
+                              className="h-full flex-1 shrink-0 bg-cover bg-center border-r border-black/30 opacity-60"
+                              style={{ backgroundImage: `url('${th}')` }}
+                            />
+                          ))}
+                        </div>
+
+                        {/* Khung hồng 2s trượt trực quan */}
+                        <div
+                          style={{
+                            left: `${windowProgress * 84}%`,
+                            width: '16%'
+                          }}
+                          className="absolute top-0 bottom-0 border-2 border-pink-400 bg-pink-500/25 rounded-md pointer-events-none shadow-[0_0_12px_rgba(255,42,122,0.8)]"
+                        />
+
                         <input
                           type="range"
                           min={windowMin}
@@ -3025,6 +3262,7 @@
                           onChange={(e) => {
                             const val = parseFloat(e.target.value);
                             setScoreTrimWindowStart(val);
+                            triggerHaptic(8);
 
                             const vid = hiddenVideoRef.current;
                             if (vid) {
@@ -3045,12 +3283,13 @@
                               vid.addEventListener('seeked', onSeek);
                             }
                           }}
-                          className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#ff2a7a]"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         />
-                        <div className="flex justify-between text-[10px] font-mono text-zinc-500 mt-1">
-                          <span>Bắt đầu 15s cuối ({formatTimeCode(windowMin)})</span>
-                          <span>Hết video ({formatTimeCode(srcDur)})</span>
-                        </div>
+                      </div>
+
+                      <div className="flex justify-between text-[10px] font-mono text-zinc-500">
+                        <span>Bắt đầu 15s cuối ({formatTimeCode(windowMin)})</span>
+                        <span>Hết video ({formatTimeCode(srcDur)})</span>
                       </div>
                     </div>
                   </div>
