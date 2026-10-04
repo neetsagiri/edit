@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -176,7 +175,7 @@
     // DANH SÁCH 28 HIỆU ỨNG CHUYỂN CẢNH (TRANSITIONS)
     const TRANSITIONS = [
       { id: 'none', name: 'Không chuyển tiếp', icon: '⛔', desc: 'Cắt trực tiếp' },
-      { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫️️', desc: 'Hòa tan mềm mại' },
+      { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫', desc: 'Hòa tan mềm mại' },
       { id: 'zoom', name: 'Phóng To Nhanh', icon: '🔍', desc: 'Đột phá khung hình' },
       { id: 'zoom_out', name: 'Thu Nhỏ Lùi', icon: '🔎', desc: 'Lùi sâu khung hình' },
       { id: 'slide', name: 'Lướt Trái', icon: '⬅️', desc: 'Trượt ngang sang trái' },
@@ -317,7 +316,6 @@
       });
     };
 
-    // TRÍCH XUẤT THUMBNAIL HD KHÔNG VỠ MỜ
     const extractThumbnailsFromVideo = (videoUrl, startTime, duration, targetCount) => {
       return new Promise((resolve) => {
         const v = document.createElement('video');
@@ -645,7 +643,6 @@
         return { x: drawX, y: drawY, w: drawW, h: drawH };
       };
 
-      // RENDER CANVAS CHUYÊN SÂU HỖ TRỢ ĐẦY ĐỦ 28 TRANSITION & 28 FILTER
       const drawFrameToContext = useCallback(
         (ctx, targetW, targetH, time) => {
           const vid = activeVideoElRef.current || videoARef.current;
@@ -673,7 +670,6 @@
           ctx.rect(0, 0, targetW, targetH);
           ctx.clip();
 
-          // Xử lý bộ lọc màu (Filter)
           const filterDef = FILTERS.find((f) => f.id === clip.colorFilter) || FILTERS[0];
           ctx.filter = (filterDef && filterDef.css && filterDef.css !== 'none') ? filterDef.css : 'none';
 
@@ -684,7 +680,6 @@
           let curRotate = 0;
           let flashOverlayColor = null;
 
-          // XỬ LÝ TOÀN DIỆN CÁC HIỆU ỨNG CHUYỂN CẢNH (TRANSITIONS)
           if (clip.transition && clip.transition !== 'none' && clipOffsetTime < transDur) {
             const rawP = Math.max(0, Math.min(1, clipOffsetTime / transDur));
             const easeP = easeInOutCubic(rawP);
@@ -744,7 +739,7 @@
                 ctx.arc(targetW / 2, targetH / 2, easeP * Math.hypot(targetW, targetH) / 1.4, 0, Math.PI * 2);
                 ctx.clip();
                 break;
-              case 'diamond_wipe':
+              case 'diamond_wipe': {
                 const dw = easeP * targetW * 1.5;
                 const dh = easeP * targetH * 1.5;
                 ctx.beginPath();
@@ -755,6 +750,7 @@
                 ctx.closePath();
                 ctx.clip();
                 break;
+              }
               case 'wipe_left':
                 ctx.beginPath();
                 ctx.rect(0, 0, targetW * easeP, targetH);
@@ -787,12 +783,13 @@
                 curScale = 0.6 + easeP * 0.4;
                 curTransX = (1.0 - easeP) * targetW * 0.5;
                 break;
-              case 'tv_static':
+              case 'tv_static': {
                 const tvH = Math.max(4, targetH * easeP);
                 ctx.beginPath();
                 ctx.rect(0, (targetH - tvH) / 2, targetW, tvH);
                 ctx.clip();
                 break;
+              }
               case 'mirror_split':
                 curScale = 0.8 + easeP * 0.2;
                 curAlpha = easeP;
@@ -802,7 +799,6 @@
             }
           }
 
-          // Xử lý Anim In
           if ((!clip.transition || clip.transition === 'none' || clipOffsetTime >= transDur) && clip.animIn && clip.animIn !== 'none' && clipOffsetTime < inDur) {
             const pIn = easeInOutCubic(clipOffsetTime / inDur);
             if (clip.animIn === 'fade_in') curAlpha = Math.min(curAlpha, pIn);
@@ -813,7 +809,6 @@
             else if (clip.animIn === 'flash_in') flashOverlayColor = `rgba(255,255,255,${Math.max(0, (1.0 - clipOffsetTime / inDur) * 0.85)})`;
           }
 
-          // Xử lý Anim Out
           if (clip.animOut && clip.animOut !== 'none' && timeLeft < outDur) {
             const pOut = easeInOutCubic(timeLeft / outDur);
             if (clip.animOut === 'fade_out') curAlpha = Math.min(curAlpha, pOut);
@@ -826,7 +821,6 @@
 
           ctx.globalAlpha = Math.max(0, Math.min(1, curAlpha));
 
-          // Áp dụng phép biến đổi phối cảnh & xoay (Rotation)
           if (curRotate !== 0) {
             ctx.translate(targetW / 2, targetH / 2);
             ctx.rotate(curRotate);
@@ -843,7 +837,6 @@
           );
           ctx.drawImage(vid, dimsCur.x, dimsCur.y, dimsCur.w, dimsCur.h);
 
-          // Phủ lớp flash nếu có
           if (flashOverlayColor) {
             ctx.fillStyle = flashOverlayColor;
             ctx.fillRect(0, 0, targetW, targetH);
@@ -851,7 +844,6 @@
 
           ctx.restore();
 
-          // Render Text & Phụ Đề
           textBoxesRef.current.clear();
           subtitles.forEach((sub) => {
             if (time >= sub.start && time <= sub.end) {
@@ -1809,6 +1801,7 @@
         });
       };
 
+      // HÀM XUẤT VIDEO CHUẨN XÁC TỪNG KHUNG HÌNH (FRAME-BY-FRAME LOCK)
       const handleExportMP4 = async () => {
         if (videoClips.length === 0 || isExporting) return;
         pauseVideo();
@@ -1816,9 +1809,9 @@
         setExportProgress(0);
         playNekoSound('click');
 
-        const vid = activeVideoElRef.current || videoARef.current;
+        const vidA = videoARef.current;
         const bgm = bgmAudioRef.current;
-        if (!vid) {
+        if (!vidA) {
           setIsExporting(false);
           return;
         }
@@ -1839,25 +1832,23 @@
 
         const audioDest = actx.createMediaStreamDestination();
 
-        if (!vidSourceNodeRef.current) {
-          try {
-            vidSourceNodeRef.current = actx.createMediaElementSource(vid);
-          } catch (e) {}
-        }
-        if (vidSourceNodeRef.current) {
+        try {
+          if (!vidSourceNodeRef.current) {
+            vidSourceNodeRef.current = actx.createMediaElementSource(vidA);
+          }
           vidSourceNodeRef.current.disconnect();
           vidSourceNodeRef.current.connect(audioDest);
-        }
+        } catch (e) {}
 
-        if (bgm && !bgmSourceNodeRef.current) {
-          try {
+        try {
+          if (bgm && !bgmSourceNodeRef.current) {
             bgmSourceNodeRef.current = actx.createMediaElementSource(bgm);
-          } catch (e) {}
-        }
-        if (bgmSourceNodeRef.current && audioClips.length > 0) {
-          bgmSourceNodeRef.current.disconnect();
-          bgmSourceNodeRef.current.connect(audioDest);
-        }
+          }
+          if (bgmSourceNodeRef.current && audioClips.length > 0) {
+            bgmSourceNodeRef.current.disconnect();
+            bgmSourceNodeRef.current.connect(audioDest);
+          }
+        } catch (e) {}
 
         const canvasStream = exportCanvas.captureStream(30);
         const combinedTracks = [
@@ -1891,7 +1882,7 @@
           const downloadUrl = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = downloadUrl;
-          a.download = `NekoCut_Export_${Date.now()}.${ext}`;
+          a.download = `${projectTitle || 'NekoCut'}_Export_${Date.now()}.${ext}`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -1899,50 +1890,54 @@
 
           setIsExporting(false);
           playNekoSound('success');
-          showToast('🐾 Xuất video hoàn tất!');
+          showToast('🐾 Đã xuất trọn vẹn video cùng đầy đủ hiệu ứng!');
           seekTo(0, true);
         };
 
         recorder.start(100);
-        showToast('Đang kết xuất video & audio...');
+        showToast('Đang kết xuất đầy đủ hiệu ứng và frame...');
 
-        const startTime = performance.now();
-        const totalMs = totalDuration * 1000;
+        const totalSec = totalDuration;
+        let exportTimelineTime = 0;
+        const fps = 30;
+        const step = 1 / fps;
 
-        seekTo(0, true);
-        vid.volume = isMuted ? 0 : (videoClips[0]?.volume ?? 1.0);
-        vid.play().catch(() => {});
+        vidA.volume = isMuted ? 0 : (videoClips[0]?.volume ?? 1.0);
+        vidA.play().catch(() => {});
         if (bgm && audioClips.length > 0) {
           bgm.currentTime = 0;
+          bgm.volume = isMuted ? 0 : (audioClips[0]?.volume ?? 1.0);
           bgm.play().catch(() => {});
         }
 
-        const renderExportLoop = () => {
-          const elapsed = performance.now() - startTime;
-          const curTimelineSec = Math.min(totalDuration, elapsed / 1000);
-
-          drawFrameToContext(exportCtx, exportCanvas.width, exportCanvas.height, curTimelineSec);
-          setExportProgress(Math.min(100, Math.round((curTimelineSec / totalDuration) * 100)));
-
-          const info = getCurrentClipInfo(curTimelineSec);
-          if (info && vid.src !== info.clip.url) {
-            vid.src = info.clip.url;
-            vid.load();
-          }
-          if (info && Math.abs(vid.currentTime - info.mediaSourceTime) > 0.08) {
-            vid.currentTime = info.mediaSourceTime;
-          }
-
-          if (elapsed < totalMs) {
-            requestAnimationFrame(renderExportLoop);
-          } else {
-            vid.pause();
+        const exportInterval = setInterval(() => {
+          if (exportTimelineTime > totalSec) {
+            clearInterval(exportInterval);
+            drawFrameToContext(exportCtx, exportCanvas.width, exportCanvas.height, totalSec);
+            setExportProgress(100);
+            vidA.pause();
             if (bgm) bgm.pause();
-            recorder.stop();
-          }
-        };
 
-        requestAnimationFrame(renderExportLoop);
+            setTimeout(() => {
+              if (recorder.state !== 'inactive') {
+                recorder.stop();
+              }
+            }, 350);
+            return;
+          }
+
+          drawFrameToContext(exportCtx, exportCanvas.width, exportCanvas.height, exportTimelineTime);
+          setExportProgress(Math.min(99, Math.floor((exportTimelineTime / totalSec) * 100)));
+
+          const info = getCurrentClipInfo(exportTimelineTime);
+          if (info && vidA.src !== info.clip.url) {
+            vidA.src = info.clip.url;
+            vidA.currentTime = info.mediaSourceTime;
+            vidA.play().catch(() => {});
+          }
+
+          exportTimelineTime += step;
+        }, 1000 / fps);
       };
 
       return (
@@ -2461,7 +2456,6 @@
                                   </div>
                                 )}
 
-                                {/* DẢI FRAME THUMBNAIL PHỦ KÍN 100% VỚI ĐỘ NÉT CAO */}
                                 <div className="absolute inset-0 flex items-center overflow-hidden pointer-events-none rounded-sm bg-black">
                                   {clip.thumbnails && clip.thumbnails.length > 0 ? (
                                     clip.thumbnails.map((thumbUri, fIdx) => (
@@ -2569,7 +2563,7 @@
                         </label>
                       </div>
 
-                      {/* TRACK 2: CHỈ HIỂN THỊ KHI NGƯỜI DÙNG TỰ THÊM NHẠC */}
+                      {/* TRACK 2: TRACK ÂM THANH */}
                       <div 
                         className="h-9 relative my-0.5"
                         style={{ width: `${totalDuration * timelineZoom}px` }}
@@ -3860,4 +3854,3 @@
   </script>
 </body>
 </html>
-
