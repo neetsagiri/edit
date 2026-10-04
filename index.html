@@ -274,6 +274,7 @@
       });
     };
 
+    // TRÍCH XUẤT THUMBNAIL SẮC NÉT CAO (HD CRISP) - KHÔNG BỊ VỠ MỜ
     const extractThumbnailsFromVideo = (videoUrl, startTime, duration, targetCount) => {
       return new Promise((resolve) => {
         const v = document.createElement('video');
@@ -285,14 +286,20 @@
         }
         v.src = videoUrl;
 
+        // Tăng độ phân giải canvas lên chuẩn HD để sắc nét trên mọi màn hình
         const canvas = document.createElement('canvas');
-        canvas.width = 64;
-        canvas.height = 72;
+        canvas.width = 160;
+        canvas.height = 112;
         const ctx = canvas.getContext('2d', { alpha: false });
-        if (ctx) ctx.imageSmoothingQuality = 'medium';
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+        }
 
         const thumbs = [];
-        const count = Math.max(6, Math.min(65, targetCount || Math.ceil((duration * 64) / 52)));
+        // Tính số lượng frame lý tưởng theo chiều dài timeline, hỗ trợ tối đa 160 frame cho video dài
+        const idealCount = Math.ceil((duration * 64) / 72);
+        const count = Math.max(8, Math.min(160, targetCount || idealCount));
         const step = duration / count;
         let index = 0;
 
@@ -324,7 +331,8 @@
             const y = (canvas.height - h) / 2;
             ctx.drawImage(v, x, y, w, h);
             try {
-              thumbs.push(canvas.toDataURL('image/jpeg', 0.72));
+              // Nén JPEG chất lượng cao 0.92 chống vỡ hạt
+              thumbs.push(canvas.toDataURL('image/jpeg', 0.92));
             } catch (e) {}
           }
           index++;
@@ -339,7 +347,7 @@
         setTimeout(() => {
           cleanup();
           resolve(thumbs);
-        }, 15000);
+        }, 22000);
       });
     };
 
@@ -507,7 +515,7 @@
 
       const refreshClipThumbnails = useCallback((clipId, url, start, dur) => {
         const clipPixelWidth = dur * timelineZoom;
-        const requiredCount = Math.max(6, Math.ceil(clipPixelWidth / 52));
+        const requiredCount = Math.max(8, Math.ceil(clipPixelWidth / 72));
 
         extractThumbnailsFromVideo(url, start, dur, requiredCount).then((thumbs) => {
           if (thumbs.length > 0) {
@@ -974,7 +982,7 @@
 
         setProjectTitle(newName.replace(/\.[^/.]+$/, ""));
         setVideoClips([newClip]);
-        setAudioClips([]); // Không tự động trích xuất âm thanh
+        setAudioClips([]); // Không trích xuất audio tự động
         setActiveClipId(newClip.id);
         setActiveAudioId(null);
         activeClipIdRef.current = newClip.id;
@@ -2159,7 +2167,7 @@
                 </div>
               )}
 
-              {/* TIMELINE VIEWPORT */}
+              {/* TIMELINE VIEWPORT VỚI ĐỘ NÉT CAO CHO CẢ VIDEO DÀI */}
               <div className="h-44 bg-[#101016] border-t border-b border-white/[0.08] flex relative shrink-0">
                 <div className="w-24 bg-[#0d0d13] border-r border-white/[0.08] flex flex-col justify-between py-2 px-1 z-20 shrink-0 select-none">
                   <div className="text-[10px] font-mono text-zinc-400 font-medium px-1">
@@ -2255,7 +2263,7 @@
                         ))}
                       </div>
 
-                      {/* TRACK 1: VIDEO CHÍNH CÓ THUMBNAIL PHỦ KÍN 100% CHIỀU RỘNG CLIP */}
+                      {/* TRACK 1: VIDEO CHÍNH CÓ THUMBNAIL HD KHÔNG BỊ VỠ NÉT KHI CO GIÃN */}
                       <div className="h-14 flex items-center gap-0">
                         {videoClips.map((clip, idx) => {
                           const effDur = clip.duration / (clip.speed || 1.0);
@@ -2304,13 +2312,14 @@
                                   </div>
                                 )}
 
+                                {/* DẢI FRAME THUMBNAIL PHỦ KÍN 100% VỚI ĐỘ NÉT CAO */}
                                 <div className="absolute inset-0 flex items-center overflow-hidden pointer-events-none rounded-sm bg-black">
                                   {clip.thumbnails && clip.thumbnails.length > 0 ? (
                                     clip.thumbnails.map((thumbUri, fIdx) => (
                                       <div
                                         key={fIdx}
                                         style={{
-                                          flex: `1 0 ${Math.max(40, clipWidth / clip.thumbnails.length)}px`
+                                          flex: `1 0 ${Math.max(56, clipWidth / clip.thumbnails.length)}px`
                                         }}
                                         className="h-full border-r border-black/40 overflow-hidden bg-black shrink-0"
                                       >
@@ -2324,7 +2333,7 @@
                                     ))
                                   ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-[8px] text-pink-400 font-mono animate-pulse">
-                                      Đang tạo frame...
+                                      Đang tải frame HD...
                                     </div>
                                   )}
                                 </div>
