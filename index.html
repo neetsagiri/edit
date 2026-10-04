@@ -172,7 +172,6 @@
       { id: 'vibrant', name: 'Vibrant Neko', desc: 'Đòn nộ rực rỡ', css: 'contrast(1.15) saturate(1.5) brightness(1.04)' }
     ];
 
-    // DANH SÁCH 28 HIỆU ỨNG CHUYỂN CẢNH (TRANSITIONS)
     const TRANSITIONS = [
       { id: 'none', name: 'Không chuyển tiếp', icon: '⛔', desc: 'Cắt trực tiếp' },
       { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫', desc: 'Hòa tan mềm mại' },
@@ -204,7 +203,6 @@
       { id: 'mirror_split', name: 'Phân Tách Gương', icon: '🪞', desc: 'Tách đôi phản chiếu' }
     ];
 
-    // DANH SÁCH 28 BỘ LỌC MÀU (FILTERS)
     const FILTERS = [
       { id: 'none', name: 'Gốc (Raw)', tag: 'Original', css: 'none' },
       { id: 'crisp', name: 'Sakura Crisp', tag: 'Neko Hot', css: 'contrast(1.18) saturate(1.15) brightness(1.02)' },
@@ -571,7 +569,7 @@
 
       const totalDuration = useMemo(() => {
         const sum = videoClips.reduce((acc, c) => acc + (c.duration / (c.speed || 1.0)), 0);
-        return Math.max(1, sum);
+        return Math.max(0.1, sum);
       }, [videoClips]);
 
       const activeClip = useMemo(() => {
@@ -644,8 +642,8 @@
       };
 
       const drawFrameToContext = useCallback(
-        (ctx, targetW, targetH, time) => {
-          const vid = activeVideoElRef.current || videoARef.current;
+        (ctx, targetW, targetH, time, customVidEl = null) => {
+          const vid = customVidEl || activeVideoElRef.current || videoARef.current;
           const clipInfo = getCurrentClipInfo(time);
 
           ctx.fillStyle = '#050508';
@@ -1801,7 +1799,7 @@
         });
       };
 
-      // HÀM XUẤT VIDEO CHUẨN XÁC TỪNG KHUNG HÌNH (FRAME-BY-FRAME LOCK)
+      // HÀM XUẤT TOÀN DIỆN: GIẢI QUYẾT ĐƠ ĐOẠN 2 VÀ XUẤT 100% CÁC CLIP NỐI TIẾP
       const handleExportMP4 = async () => {
         if (videoClips.length === 0 || isExporting) return;
         pauseVideo();
@@ -1810,6 +1808,7 @@
         playNekoSound('click');
 
         const vidA = videoARef.current;
+        const vidB = videoBRef.current;
         const bgm = bgmAudioRef.current;
         if (!vidA) {
           setIsExporting(false);
@@ -1890,32 +1889,88 @@
 
           setIsExporting(false);
           playNekoSound('success');
-          showToast('🐾 Đã xuất trọn vẹn video cùng đầy đủ hiệu ứng!');
+          showToast('🐾 Đã xuất đầy đủ 100% video và tất cả các đoạn!');
           seekTo(0, true);
         };
 
         recorder.start(100);
-        showToast('Đang kết xuất đầy đủ hiệu ứng và frame...');
+        showToast('Đang kết xuất liên tục toàn bộ các đoạn video...');
 
-        const totalSec = totalDuration;
-        let exportTimelineTime = 0;
-        const fps = 30;
-        const step = 1 / fps;
+        let currentActivePlayer = 'A';
+        let currentClipIdx = 0;
 
-        vidA.volume = isMuted ? 0 : (videoClips[0]?.volume ?? 1.0);
-        vidA.play().catch(() => {});
+        // Bắt đầu từ clip 0
+        const firstClip = videoClips[0];
+        vidA.src = firstClip.url;
+        vidA.playbackRate = firstClip.speed || 1.0;
+        vidA.currentTime = firstClip.trimStart;
+        vidA.volume = isMuted ? 0 : (firstClip.volume ?? 1.0);
+
+        await new Promise((r) => {
+          const onReady = () => { vidA.removeEventListener('seeked', onReady); r(); };
+          vidA.addEventListener('seeked', onReady);
+          setTimeout(r, 300);
+        });
+
+        await vidA.play().catch(() => {});
+        activeVideoElRef.current = vidA;
+
         if (bgm && audioClips.length > 0) {
           bgm.currentTime = 0;
           bgm.volume = isMuted ? 0 : (audioClips[0]?.volume ?? 1.0);
           bgm.play().catch(() => {});
         }
 
-        const exportInterval = setInterval(() => {
-          if (exportTimelineTime > totalSec) {
-            clearInterval(exportInterval);
-            drawFrameToContext(exportCtx, exportCanvas.width, exportCanvas.height, totalSec);
+        let exportLoopRunning = true;
+        const totalSec = totalDuration;
+        const startTime = performance.now();
+
+        const renderExportLoop = () => {
+          if (!exportLoopRunning) return;
+
+          const now = performance.now();
+          const elapsedSec = (now - startTime) / 1000;
+          const currentTimelineSec = Math.min(totalSec, elapsedSec);
+
+          const curClip = videoClips[currentClipIdx];
+          const activeVid = currentActivePlayer === 'A' ? vidA : vidB;
+
+          if (curClip && activeVid) {
+            const clipEndSourceTime = curClip.trimStart + curClip.duration;
+            // Nếu đã chạy hết thời lượng của đoạn clip hiện tại
+            if (activeVid.currentTime >= clipEndSourceTime - 0.05 || (curClip.duration / (curClip.speed || 1.0)) <= (currentTimelineSec - (curClip._startTime || 0))) {
+              if (currentClipIdx < videoClips.length - 1) {
+                currentClipIdx++;
+                const nextClip = videoClips[currentClipIdx];
+                const nextPlayer = currentActivePlayer === 'A' ? 'B' : 'A';
+                const nextVid = nextPlayer === 'A' ? vidA : vidB;
+
+                currentActivePlayer = nextPlayer;
+                activeVideoElRef.current = nextVid;
+
+                if (nextVid.src !== nextClip.url) {
+                  nextVid.src = nextClip.url;
+                }
+                nextVid.playbackRate = nextClip.speed || 1.0;
+                nextVid.currentTime = nextClip.trimStart;
+                nextVid.volume = isMuted ? 0 : (nextClip.volume ?? 1.0);
+                nextVid.play().catch(() => {});
+              }
+            }
+          }
+
+          drawFrameToContext(exportCtx, exportCanvas.width, exportCanvas.height, currentTimelineSec, activeVid);
+          setExportProgress(Math.min(99, Math.floor((currentTimelineSec / totalSec) * 100)));
+
+          if (currentTimelineSec < totalSec) {
+            requestAnimationFrame(renderExportLoop);
+          } else {
+            exportLoopRunning = false;
+            drawFrameToContext(exportCtx, exportCanvas.width, exportCanvas.height, totalSec, activeVid);
             setExportProgress(100);
+
             vidA.pause();
+            if (vidB) vidB.pause();
             if (bgm) bgm.pause();
 
             setTimeout(() => {
@@ -1923,21 +1978,10 @@
                 recorder.stop();
               }
             }, 350);
-            return;
           }
+        };
 
-          drawFrameToContext(exportCtx, exportCanvas.width, exportCanvas.height, exportTimelineTime);
-          setExportProgress(Math.min(99, Math.floor((exportTimelineTime / totalSec) * 100)));
-
-          const info = getCurrentClipInfo(exportTimelineTime);
-          if (info && vidA.src !== info.clip.url) {
-            vidA.src = info.clip.url;
-            vidA.currentTime = info.mediaSourceTime;
-            vidA.play().catch(() => {});
-          }
-
-          exportTimelineTime += step;
-        }, 1000 / fps);
+        requestAnimationFrame(renderExportLoop);
       };
 
       return (
