@@ -188,7 +188,7 @@
       { id: 'fade_in', name: 'Mờ Dần Vào', icon: '🌅' },
       { id: 'zoom_in', name: 'Thu Phóng Vào', icon: '🔎' },
       { id: 'slide_in_left', name: 'Trượt Từ Trái', icon: '⬅️' },
-      { id: 'slide_in_right', name: 'Trượt Từ Phải', icon: '➡️' },
+      { id: 'slide_in_right', name: 'Trượt Từ Phải', icon: '➡️️' },
       { id: 'slide_in_up', name: 'Trượt Từ Dưới', icon: '⬆️' },
       { id: 'flash_in', name: 'Chớp Sáng Vào', icon: '✨' }
     ];
@@ -274,6 +274,67 @@
       });
     };
 
+    // PHƯƠNG ÁN A: HÀM TRÍCH XUẤT THUMBNAIL CHÍNH XÁC THEO TIMELINE TỪ VIDEO GỐC
+    const extractThumbnailsFromVideo = (videoUrl, startTime, duration, count = 6) => {
+      return new Promise((resolve) => {
+        const v = document.createElement('video');
+        v.preload = 'auto';
+        v.muted = true;
+        v.playsInline = true;
+        if (!videoUrl.startsWith('blob:')) {
+          v.crossOrigin = 'anonymous';
+        }
+        v.src = videoUrl;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 80;
+        canvas.height = 45;
+        const ctx = canvas.getContext('2d');
+        const thumbs = [];
+
+        const step = Math.max(0.08, duration / count);
+        let curTime = startTime;
+
+        const cleanup = () => {
+          v.onseeked = null;
+          v.onerror = null;
+          v.src = '';
+          v.load();
+        };
+
+        v.onloadedmetadata = () => {
+          v.currentTime = Math.min(v.duration || curTime, curTime);
+        };
+
+        v.onseeked = () => {
+          if (ctx) {
+            ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+            try {
+              thumbs.push(canvas.toDataURL('image/jpeg', 0.5));
+            } catch (e) {}
+          }
+
+          curTime += step;
+          if (thumbs.length < count && curTime <= startTime + duration + 0.05) {
+            v.currentTime = Math.min(v.duration || curTime, curTime);
+          } else {
+            cleanup();
+            resolve(thumbs);
+          }
+        };
+
+        v.onerror = () => {
+          cleanup();
+          resolve([]);
+        };
+
+        setTimeout(() => {
+          cleanup();
+          resolve(thumbs);
+        }, 4500);
+      });
+    };
+
     function App() {
       const [currentPage, setCurrentPage] = useState('home');
       const [toastMsg, setToastMsg] = useState('');
@@ -296,7 +357,8 @@
           animOut: 'none',
           animOutDur: 0.5,
           volume: 1.0,
-          isScoreClip: false
+          isScoreClip: false,
+          thumbnails: []
         }
       ]);
       const [activeClipId, setActiveClipId] = useState('clip_neko_1');
@@ -367,7 +429,7 @@
       const canvasRef = useRef(null);
       const coverCanvasRef = useRef(null);
 
-      // CƠ CHẾ DUAL VIDEO BUFFER GAPLESS (CAPCUT STYLE)
+      // CƠ CHẾ DUAL VIDEO BUFFER GAPLESS
       const videoARef = useRef(null);
       const videoBRef = useRef(null);
       const activePlayerRef = useRef('A'); 
@@ -390,6 +452,27 @@
         setToastMsg(msg);
         setTimeout(() => setToastMsg(''), 2200);
       };
+
+      // Tự động nạp thumbnail cho clip mặc định ban đầu
+      useEffect(() => {
+        if (videoClips.length > 0 && (!videoClips[0].thumbnails || videoClips[0].thumbnails.length === 0)) {
+          extractThumbnailsFromVideo(videoClips[0].url, videoClips[0].trimStart, videoClips[0].duration, 6).then((thumbs) => {
+            if (thumbs.length > 0) {
+              setVideoClips((prev) => prev.map((c, i) => (i === 0 ? { ...c, thumbnails: thumbs } : c)));
+            }
+          });
+        }
+      }, []);
+
+      const refreshClipThumbnails = useCallback((clipId, url, start, dur) => {
+        extractThumbnailsFromVideo(url, start, dur, 6).then((thumbs) => {
+          if (thumbs.length > 0) {
+            setVideoClips((prev) =>
+              prev.map((c) => (c.id === clipId ? { ...c, thumbnails: thumbs } : c))
+            );
+          }
+        });
+      }, []);
 
       const totalDuration = useMemo(() => {
         const sum = videoClips.reduce((acc, c) => acc + (c.duration / (c.speed || 1.0)), 0);
@@ -806,7 +889,8 @@
           animOut: 'none',
           animOutDur: 0.5,
           volume: 1.0,
-          isScoreClip: false
+          isScoreClip: false,
+          thumbnails: []
         };
 
         setProjectTitle(newName.replace(/\.[^/.]+$/, ""));
@@ -838,6 +922,9 @@
 
         if (timelineScrollRef.current) timelineScrollRef.current.scrollLeft = 0;
         showToast(`Đã mở dự án: ${newDur.toFixed(1)}s`);
+
+        // Tự trích xuất thumbnails cho clip vừa tải lên
+        refreshClipThumbnails(newClip.id, newUrl, 0, newDur);
       };
 
       const handleBackToHome = () => {
@@ -847,7 +934,7 @@
         showToast('Đã trở về sảnh chính Neko');
       };
 
-      // VÒNG LẶP RENDER KHÔNG KHỰNG (GAPLESS LOOP)
+      // VÒNG LẶP RENDER GAPLESS
       useEffect(() => {
         if (currentPage !== 'editor') return;
 
@@ -869,14 +956,12 @@
                   const nextClip = videoClips[activeIdx + 1];
                   const nextSpd = nextClip.speed || 1.0;
 
-                  // 1. Cùng chung 1 video gốc (tách clip) -> Không seek lại, để video chạy tiếp
                   if (curClip.url === nextClip.url && Math.abs(clipSourceEnd - nextClip.trimStart) < 0.08) {
                     activeClipIdRef.current = nextClip.id;
                     setActiveClipId(nextClip.id);
                     curVid.playbackRate = nextSpd;
                     curVid.volume = isMuted ? 0 : (nextClip.volume ?? 1.0);
                   } else {
-                    // 2. Clip khác hoặc có khoảng nhảy thời gian -> Đổi sang player dự phòng trong 0ms
                     const nextPlayer = activePlayerRef.current === 'A' ? 'B' : 'A';
                     const nextVid = nextPlayer === 'A' ? videoARef.current : videoBRef.current;
 
@@ -937,7 +1022,7 @@
         };
       }, [currentPage, videoClips, totalDuration, timelineZoom, renderCanvasFrame, seekTo, isMuted]);
 
-      // TÁCH CLIP TẠI PLAYHEAD
+      // TÁCH CLIP TẠI PLAYHEAD VÀ CẬP NHẬT THUMBNAIL CHO 2 NỬA
       const handleSplitClipAtPlayhead = () => {
         const t = currentTimeRef.current;
         const info = getCurrentClipInfo(t);
@@ -968,7 +1053,8 @@
           animInDur: 0.5,
           animOut: 'none',
           animOutDur: 0.5,
-          isScoreClip: false
+          isScoreClip: false,
+          thumbnails: []
         };
 
         const newClips = [...videoClips];
@@ -979,7 +1065,11 @@
         activeClipIdRef.current = clip1.id;
 
         renderCanvasFrame(t);
-        showToast('🐾 Đã tách clip! Không gián đoạn luồng phát');
+        showToast('🐾 Đã tách clip! Đang cập nhật dải frame...');
+
+        // Làm mới dải thumbnail riêng cho 2 đoạn clip sau khi tách
+        refreshClipThumbnails(clip1.id, clip1.url, clip1.trimStart, clip1.duration);
+        refreshClipThumbnails(clip2.id, clip2.url, clip2.trimStart, clip2.duration);
       };
 
       const handlePreviewPointerDown = (e) => {
@@ -1214,6 +1304,12 @@
           try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
           showToast('🐾 Đã tinh chỉnh độ dài clip');
           seekTo(currentTimeRef.current, false);
+
+          // Tự động trích xuất lại dải thumbnail tương ứng với đoạn vừa cắt
+          const trimmedClip = videoClips.find(c => c.id === trimDataRef.current.clipId);
+          if (trimmedClip) {
+            refreshClipThumbnails(trimmedClip.id, trimmedClip.url, trimmedClip.trimStart, trimmedClip.duration);
+          }
         }
       };
 
@@ -1271,7 +1367,6 @@
         }
       };
 
-      // TÍNH NĂNG MATRIXAUTO TỰ ĐỘNG DỰNG KỊCH BẢN
       const applyMatrixTemplate = async (customVideoFile = null) => {
         const url = customVideoFile ? URL.createObjectURL(customVideoFile) : SAMPLE_WW_VIDEO;
         const name = customVideoFile ? customVideoFile.name : 'Neko_Combat_Sample.mp4';
@@ -1299,7 +1394,8 @@
           animOut: 'flash_out',
           animOutDur: 0.3,
           volume: 1.0,
-          isScoreClip: true
+          isScoreClip: true,
+          thumbnails: []
         };
 
         const combatClip = {
@@ -1318,7 +1414,8 @@
           animOut: 'fade_out',
           animOutDur: 0.4,
           volume: 1.0,
-          isScoreClip: false
+          isScoreClip: false,
+          thumbnails: []
         };
 
         const finalClips = autoScoreLoop ? [scoreClip, combatClip] : [{ ...combatClip, duration: trueDuration }];
@@ -1348,6 +1445,11 @@
         if (timelineScrollRef.current) timelineScrollRef.current.scrollLeft = 0;
         playNekoSound('success');
         showToast(`🐾 MatrixAuto sẵn sàng: ${trueDuration.toFixed(1)}s`);
+
+        // Tự trích xuất thumbnail chính xác cho các clip matrix
+        finalClips.forEach(c => {
+          refreshClipThumbnails(c.id, c.url, c.trimStart, c.duration);
+        });
       };
 
       const handleExportMP4 = async () => {
@@ -1859,7 +1961,7 @@
                 </div>
               )}
 
-              {/* TIMELINE VIEWPORT (GAPLESS CẮT CHUẨN XÁC) */}
+              {/* TIMELINE VIEWPORT (GAPLESS CẮT CHUẨN XÁC KÈM REAL THUMBNAILS) */}
               <div className="h-44 bg-[#101016] border-t border-b border-white/[0.08] flex relative shrink-0">
                 <div className="w-24 bg-[#0d0d13] border-r border-white/[0.08] flex flex-col justify-between py-2 px-1 z-20 shrink-0 select-none">
                   <div className="text-[10px] font-mono text-zinc-400 font-medium px-1">
@@ -1970,7 +2072,6 @@
                                   setActiveSubId(null);
                                   playNekoSound('click');
 
-                                  // Mở popup chọn 2s nếu là clip MatrixAuto
                                   if (clip.isScoreClip) {
                                     setScoreTrimWindowStart(clip.trimStart);
                                     setShowScoreSelectModal(true);
@@ -2001,16 +2102,21 @@
                                   </div>
                                 )}
 
-                                <div className="absolute inset-0 flex items-center overflow-hidden opacity-45 pointer-events-none">
-                                  {[...Array(Math.max(1, Math.ceil(clipWidth / 48)))].map((_, fIdx) => (
-                                    <div
-                                      key={fIdx}
-                                      className="w-12 h-full shrink-0 border-r border-black/40 bg-cover bg-center"
-                                      style={{
-                                        backgroundImage: `url('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=120&auto=format&fit=crop&q=80')`
-                                      }}
-                                    />
-                                  ))}
+                                {/* PHƯƠNG ÁN A: HIỂN THỊ DẢI THUMBNAIL CHÍNH XÁC THEO TỪNG FRAME CỦA VIDEO */}
+                                <div className="absolute inset-0 flex items-center overflow-hidden opacity-60 pointer-events-none">
+                                  {clip.thumbnails && clip.thumbnails.length > 0 ? (
+                                    clip.thumbnails.map((thumbUri, fIdx) => (
+                                      <div
+                                        key={fIdx}
+                                        className="h-full flex-1 border-r border-black/40 bg-cover bg-center"
+                                        style={{ backgroundImage: `url('${thumbUri}')` }}
+                                      />
+                                    ))
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-zinc-900/80 text-[8px] text-pink-400 font-mono animate-pulse">
+                                      Đang tạo frame...
+                                    </div>
+                                  )}
                                 </div>
 
                                 <div className="flex flex-col min-w-0 z-10 pointer-events-none pl-4">
@@ -2066,28 +2172,28 @@
                               if (f) {
                                 const url = URL.createObjectURL(f);
                                 const dur = await getExactVideoDuration(url);
-                                setVideoClips((prev) => [
-                                  ...prev,
-                                  {
-                                    id: `clip_${Date.now()}`,
-                                    name: f.name.substring(0, 16),
-                                    url,
-                                    sourceDuration: dur,
-                                    trimStart: 0,
-                                    duration: dur,
-                                    speed: 1.0,
-                                    colorFilter: 'none',
-                                    transition: 'none',
-                                    transitionDuration: 0.5,
-                                    animIn: 'none',
-                                    animInDur: 0.5,
-                                    animOut: 'none',
-                                    animOutDur: 0.5,
-                                    volume: 1.0,
-                                    isScoreClip: false
-                                  }
-                                ]);
+                                const addedClip = {
+                                  id: `clip_${Date.now()}`,
+                                  name: f.name.substring(0, 16),
+                                  url,
+                                  sourceDuration: dur,
+                                  trimStart: 0,
+                                  duration: dur,
+                                  speed: 1.0,
+                                  colorFilter: 'none',
+                                  transition: 'none',
+                                  transitionDuration: 0.5,
+                                  animIn: 'none',
+                                  animInDur: 0.5,
+                                  animOut: 'none',
+                                  animOutDur: 0.5,
+                                  volume: 1.0,
+                                  isScoreClip: false,
+                                  thumbnails: []
+                                };
+                                setVideoClips((prev) => [...prev, addedClip]);
                                 showToast(`🐾 Đã thêm clip ${dur.toFixed(1)}s`);
+                                refreshClipThumbnails(addedClip.id, url, 0, dur);
                               }
                             }}
                             className="hidden"
@@ -3037,6 +3143,8 @@
                           playNekoSound('success');
                           showToast(`🐾 Đã chọn đoạn 2s: ${scoreTrimWindowStart.toFixed(1)}s - ${(scoreTrimWindowStart + 2).toFixed(1)}s`);
                           seekTo(0, true);
+
+                          refreshClipThumbnails(targetClip.id, targetClip.url, scoreTrimWindowStart, 2.0);
                         }}
                         className="px-3.5 py-1 rounded-full bg-[#ff2a7a] text-white font-extrabold text-xs shadow-[0_0_12px_rgba(255,42,122,0.4)]"
                       >
