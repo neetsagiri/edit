@@ -1,6 +1,6 @@
 {
-  "name": "NekoCut Pro - Trình Biên Tập Video",
-  "short_name": "NekoCut Pro",
+  "name": "NekoCut Pro",
+  "short_name": "NekoCut",
   "description": "Trình biên tập video phong cách Neko Anime & Gaming",
   "start_url": "./",
   "scope": "./",
@@ -13,7 +13,7 @@
       "src": "nekocut.jpg",
       "sizes": "192x192",
       "type": "image/jpeg",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "nekocut.jpg",
