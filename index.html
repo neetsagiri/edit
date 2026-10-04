@@ -11,20 +11,52 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="NekoCut Pro" />
-  <link rel="apple-touch-icon" href="./nekocut.jpg" />
+  <link rel="apple-touch-icon" href="nekocut.jpg" />
 
-  <!-- Khai báo Web App Manifest đường dẫn tương đối chuẩn GitHub Pages -->
-  <link rel="manifest" href="./manifest.json" />
-
-  <!-- Đăng ký Service Worker với scope chuẩn cho subfolder -->
+  <!-- Tạo và nhúng Web App Manifest trực tiếp qua Blob -->
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js', { scope: './' })
-          .then((reg) => console.log('NekoCut SW đã kích hoạt:', reg.scope))
-          .catch((err) => console.log('SW registration bypass:', err));
-      });
-    }
+    (() => {
+      const manifest = {
+        name: "NekoCut Pro - Trình Biên Tập Video",
+        short_name: "NekoCut Pro",
+        description: "Trình biên tập video phong cách Neko Anime & Gaming",
+        start_url: window.location.href,
+        display: "standalone",
+        orientation: "portrait",
+        background_color: "#07070b",
+        theme_color: "#07070b",
+        icons: [
+          {
+            src: "nekocut.jpg",
+            sizes: "192x192",
+            type: "image/jpeg"
+          },
+          {
+            src: "nekocut.jpg",
+            sizes: "512x512",
+            type: "image/jpeg"
+          }
+        ]
+      };
+      const stringManifest = JSON.stringify(manifest);
+      const blob = new Blob([stringManifest], { type: 'application/json' });
+      const manifestURL = URL.createObjectURL(blob);
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = manifestURL;
+      document.head.appendChild(link);
+
+      // Đăng ký Service Worker rỗng để kích hoạt điều kiện cài đặt PWA của trình duyệt
+      if ('serviceWorker' in navigator) {
+        const swBlob = new Blob([`
+          self.addEventListener('install', (e) => self.skipWaiting());
+          self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+          self.addEventListener('fetch', (e) => {});
+        `], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(swBlob);
+        navigator.serviceWorker.register(swUrl).catch(() => {});
+      }
+    })();
   </script>
 
   <!-- Tailwind CSS CDN -->
@@ -190,7 +222,6 @@
       { id: 'vibrant', name: 'Vibrant Neko', desc: 'Đòn nộ rực rỡ', css: 'contrast(1.15) saturate(1.5) brightness(1.04)' }
     ];
 
-    // 28 HIỆU ỨNG CHUYỂN CẢNH
     const TRANSITIONS = [
       { id: 'none', name: 'Không chuyển tiếp', icon: '⛔', desc: 'Cắt trực tiếp' },
       { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫', desc: 'Hòa tan mềm mại' },
@@ -198,16 +229,16 @@
       { id: 'zoom_out', name: 'Thu Nhỏ Lùi', icon: '🔎', desc: 'Lùi sâu khung hình' },
       { id: 'slide', name: 'Lướt Trái', icon: '⬅️', desc: 'Trượt ngang sang trái' },
       { id: 'slide_right', name: 'Lướt Phải', icon: '➡️', desc: 'Trượt ngang sang phải' },
-      { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆️️', desc: 'Trượt dọc điện ảnh' },
+      { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆️', desc: 'Trượt dọc điện ảnh' },
       { id: 'slide_down', name: 'Hạ Xuống Dưới', icon: '⬇️', desc: 'Trượt dọc hạ xuống' },
       { id: 'flash', name: 'Chớp Sáng Trắng', icon: '⚡', desc: 'Chớp sáng phong cách anime' },
       { id: 'black_fade', name: 'Chớp Đen Noir', icon: '🌑', desc: 'Hạ đen kịch tính' },
       { id: 'glitch', name: 'Neko Glitch Matrix', icon: '👾', desc: 'Rung giật cyberpunk' },
-      { id: 'spin', name: 'Xoay Vòng Thuận', icon: '🔄', desc: 'Xoay 360 độ hút tâm' },
+      { id: 'spin', name: 'Xoay Vòng Kim Đồng Hồ', icon: '🔄', desc: 'Xoay 360 độ hút tâm' },
       { id: 'spin_ccw', name: 'Xoay Ngược Chiều', icon: '🔃', desc: 'Xoay ngược chiều kim' },
       { id: 'circle_wipe', name: 'Mở Vòng Tròn (Iris)', icon: '⭕', desc: 'Mở rộng hình tròn tâm' },
       { id: 'diamond_wipe', name: 'Mở Khối Kim Cương', icon: '💠', desc: 'Mở rộng hình thoi viền' },
-      { id: 'wipe_left', name: 'Quét Màn Trái', icon: '🪟', desc: 'Quét thanh màn ngang' },
+      { id: 'wipe_left', name: 'Quét Màn Hình Trái', icon: '🪟', desc: 'Quét thanh màn ngang' },
       { id: 'wipe_down', name: 'Rèm Cửa Hạ Xuống', icon: '📉', desc: 'Kéo màn dọc hạ xuống' },
       { id: 'pixelate', name: 'Pixel Mờ Ảo', icon: '🧱', desc: 'Hóa mờ ô vuông Pixel' },
       { id: 'color_dodge', name: 'Lóa Sáng Hồng Neko', icon: '🌸', desc: 'Chớp lóe ánh hồng Sakura' },
@@ -215,14 +246,13 @@
       { id: 'shake_impact', name: 'Rung Chấn Nộ Khí', icon: '💥', desc: 'Rung đập động đất mạnh' },
       { id: 'skew_slice', name: 'Cắt Chéo Điện Ảnh', icon: '📐', desc: 'Xé nghiêng phối cảnh' },
       { id: 'heart_pop', name: 'Neko Heart Pop', icon: '💖', desc: 'Nở bùng trái tim mèo' },
-      { id: 'page_turn', name: 'Lật Trang Manga', icon: '📖', desc: 'Gập lật truyện tranh' },
-      { id: 'tv_static', name: 'Tắt Màn TV CRT', icon: '📺', desc: 'Thu về dải sáng CRT' },
+      { id: 'page_turn', name: 'Lật Trang Sách Manga', icon: '📖', desc: 'Gập lật truyện tranh' },
+      { id: 'tv_static', name: 'Tắt Màn TV Cổ Điển', icon: '📺', desc: 'Thu về dải sáng CRT' },
       { id: 'blur_dissolve', name: 'Hòa Tan Nhòe Quang', icon: '🔮', desc: 'Nhòe mờ Bokeh nghệ thuật' },
       { id: 'radial_blur', name: 'Tia Sáng Hội Tụ', icon: '💫', desc: 'Vệt sáng xoáy tâm' },
       { id: 'mirror_split', name: 'Phân Tách Gương', icon: '🪞', desc: 'Tách đôi phản chiếu' }
     ];
 
-    // 28 BỘ LỌC MÀU CHUYÊN NGHIỆP
     const FILTERS = [
       { id: 'none', name: 'Gốc (Raw)', tag: 'Original', css: 'none' },
       { id: 'crisp', name: 'Sakura Crisp', tag: 'Neko Hot', css: 'contrast(1.18) saturate(1.15) brightness(1.02)' },
@@ -334,7 +364,7 @@
       });
     };
 
-    // TRÍCH XUẤT THUMBNAIL HD KHÔNG VỠ MỜ
+    // TRÍCH XUẤT THUMBNAIL HD SẮC NÉT
     const extractThumbnailsFromVideo = (videoUrl, startTime, duration, targetCount) => {
       return new Promise((resolve) => {
         const v = document.createElement('video');
@@ -455,6 +485,7 @@
       const [showIosInstallModal, setShowIosInstallModal] = useState(false);
 
       useEffect(() => {
+        // Nhận diện app đã được cài đặt và đang chạy ở chế độ standalone
         if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
           setIsInstalledApp(true);
         }
@@ -527,7 +558,6 @@
       const [fitMode, setFitMode] = useState('cover');
       const [showRatioMenu, setShowRatioMenu] = useState(false);
 
-      // Track âm thanh khởi tạo rỗng
       const [audioClips, setAudioClips] = useState([]);
       const [activeAudioId, setActiveAudioId] = useState(null);
 
@@ -1988,7 +2018,7 @@
                 <div className="flex items-center gap-2.5">
                   <div className="w-10 h-10 rounded-full border-2 border-pink-500/60 overflow-hidden bg-zinc-900 shadow-[0_0_12px_rgba(255,42,122,0.4)] shrink-0 flex items-center justify-center">
                     <img
-                      src="./nekocut.jpg"
+                      src="nekocut.jpg"
                       alt="NekoCut Logo"
                       className="w-full h-full object-cover"
                       onError={(e) => {
@@ -2004,6 +2034,7 @@
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {/* NÚT CÀI ĐẶT WEB VỀ MÁY (PWA INSTALL) */}
                   {!isInstalledApp && (
                     <button
                       onClick={handleTriggerInstall}
@@ -2023,7 +2054,7 @@
                     className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#ff2a7a] via-[#ff5364] to-[#ffa726] text-black font-extrabold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(255,42,122,0.45)] active:scale-95 transition"
                   >
                     <img
-                      src="./wwlogo.jpg"
+                      src="wwlogo.jpg"
                       alt="MatrixAuto Logo"
                       className="w-4 h-4 rounded-full object-cover border border-black/40 shrink-0 shadow-sm"
                       onError={(e) => {
@@ -2090,7 +2121,7 @@
                         <div className="flex items-center gap-2.5">
                           <div className="w-7 h-7 rounded-lg overflow-hidden border border-pink-500/50 shadow-[0_0_10px_rgba(255,42,122,0.3)] bg-zinc-900 shrink-0">
                             <img
-                              src="./wwlogo.jpg"
+                              src="wwlogo.jpg"
                               alt="MatrixAuto WW Logo"
                               className="w-full h-full object-cover"
                               onError={(e) => {
@@ -2109,7 +2140,7 @@
 
                       <div className="mt-4 w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-[#ff2a7a] via-[#ff5e57] to-[#ffb300] text-black font-extrabold text-sm flex items-center justify-center gap-2 shadow-[0_4px_22px_rgba(255,42,122,0.45)] hover:brightness-105 active:scale-[0.98] transition">
                         <img
-                          src="./wwlogo.jpg"
+                          src="wwlogo.jpg"
                           alt="WW Icon"
                           className="w-4 h-4 rounded-full object-cover border border-black/40 shrink-0"
                           onError={(e) => { e.target.style.display = 'none'; }}
@@ -2120,6 +2151,7 @@
                   </div>
                 </div>
 
+                {/* BANNER GỢI Ý CÀI ĐẶT NHANH */}
                 {!isInstalledApp && (
                   <div className="p-4 rounded-2xl bg-gradient-to-r from-pink-950/40 via-purple-950/30 to-zinc-900/50 border border-pink-500/30 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -2159,7 +2191,7 @@
 
                   <div className="w-7 h-7 rounded-full border border-pink-500/40 overflow-hidden bg-zinc-900 shadow-sm shrink-0">
                     <img
-                      src="./nekocut.jpg"
+                      src="nekocut.jpg"
                       alt="NekoCut Logo"
                       className="w-full h-full object-cover"
                       onError={(e) => {
@@ -2947,7 +2979,7 @@
                 )}
               </footer>
 
-              {/* TOOL SHEET */}
+              {/* TOOL SHEET HIỂN THỊ CÁC FILTER VÀ EFFECT MỚI */}
               {showToolSheet && (
                 <div className="fixed inset-x-0 bottom-0 z-50 bg-[#121218] border-t border-white/[0.1] rounded-t-2xl p-4 shadow-2xl max-h-[60vh] overflow-y-auto neko-scroll animate-in slide-in-from-bottom duration-200">
                   <div className="flex items-center justify-between border-b border-white/[0.08] pb-2 mb-3">
@@ -3446,7 +3478,7 @@
                   <div className="flex items-center gap-2.5">
                     <div className="w-6 h-6 rounded-md overflow-hidden border border-pink-500/50 shadow-sm bg-zinc-900 shrink-0">
                       <img
-                        src="./wwlogo.jpg"
+                        src="wwlogo.jpg"
                         alt="MatrixAuto WW Logo"
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -3509,7 +3541,7 @@
                     className="h-12 rounded-xl bg-zinc-800/90 text-xs font-bold text-zinc-100 border border-white/[0.1] hover:bg-zinc-700 flex items-center justify-center transition shadow-md gap-2"
                   >
                     <img
-                      src="./wwlogo.jpg"
+                      src="wwlogo.jpg"
                       alt="WW Icon"
                       className="w-4 h-4 rounded-full object-cover shrink-0"
                       onError={(e) => { e.target.style.display = 'none'; }}
@@ -3535,7 +3567,7 @@
             </div>
           )}
 
-          {/* MODAL HƯỚNG DẪN CÀI ĐẶT TRÊN IOS SAFARI */}
+          {/* MODAL HƯỚNG DẪN CÀI ĐẶT CHO IPHONE / IPAD (IOS SAFARI) */}
           {showIosInstallModal && (
             <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-3">
               <div className="bg-[#15141e] border border-white/10 rounded-2xl w-full max-w-sm p-5 space-y-4 shadow-2xl">
