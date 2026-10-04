@@ -176,7 +176,7 @@
       { id: 'none', name: 'Không chuyển tiếp', icon: '⛔', desc: 'Cắt trực tiếp' },
       { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫️', desc: 'Hòa tan mềm mại' },
       { id: 'zoom', name: 'Phóng To Nhanh', icon: '🔍', desc: 'Đột phá khung hình' },
-      { id: 'slide', name: 'Lướt Cạnh Trái', icon: '↔️', desc: 'Trượt ngang mượt mà' },
+      { id: 'slide', name: 'Lướt Cạnh Trái', icon: '↔️️', desc: 'Trượt ngang mượt mà' },
       { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆️', desc: 'Trượt dọc điện ảnh' },
       { id: 'flash', name: 'Chớp Sáng Trắng', icon: '⚡', desc: 'Chớp sáng phong cách anime' },
       { id: 'black_fade', name: 'Chớp Đen Noir', icon: '🌑', desc: 'Hạ đen kịch tính' },
@@ -199,7 +199,7 @@
       { id: 'zoom_out', name: 'Thu Nhỏ Dần Ra', icon: '🔬' },
       { id: 'slide_out_left', name: 'Trượt Về Trái', icon: '👈' },
       { id: 'slide_out_right', name: 'Trượt Về Phải', icon: '👉' },
-      { id: 'slide_out_down', name: 'Hạ Xuống Dưới', icon: '⬇️' },
+      { id: 'slide_out_down', name: 'Hạ Xuống Dưới', icon: '⬇️️' },
       { id: 'black_out', name: 'Tắt Dần Đen', icon: '🌑' }
     ];
 
@@ -274,7 +274,8 @@
       });
     };
 
-    const extractThumbnailsFromVideo = (videoUrl, startTime, duration, targetCount = 10) => {
+    // TRÍCH XUẤT THUMBNAIL PHỦ KÍN 100% TIMELINE, TỐI ƯU TỐC ĐỘ SEEK
+    const extractThumbnailsFromVideo = (videoUrl, startTime, duration, targetCount) => {
       return new Promise((resolve) => {
         const v = document.createElement('video');
         v.preload = 'auto';
@@ -286,13 +287,13 @@
         v.src = videoUrl;
 
         const canvas = document.createElement('canvas');
-        canvas.width = 100;
-        canvas.height = 120;
+        canvas.width = 64;
+        canvas.height = 72;
         const ctx = canvas.getContext('2d', { alpha: false });
-        if (ctx) ctx.imageSmoothingQuality = 'high';
+        if (ctx) ctx.imageSmoothingQuality = 'medium';
 
         const thumbs = [];
-        const count = Math.max(2, targetCount);
+        const count = Math.max(6, Math.min(65, targetCount || Math.ceil((duration * 64) / 52)));
         const step = duration / count;
         let index = 0;
 
@@ -310,7 +311,7 @@
             return;
           }
           const targetSec = startTime + (index + 0.5) * step;
-          v.currentTime = Math.min(v.duration || targetSec, targetSec);
+          v.currentTime = Math.min((v.duration || targetSec) - 0.05, targetSec);
         };
 
         v.onloadedmetadata = () => seekNext();
@@ -324,7 +325,7 @@
             const y = (canvas.height - h) / 2;
             ctx.drawImage(v, x, y, w, h);
             try {
-              thumbs.push(canvas.toDataURL('image/jpeg', 0.92));
+              thumbs.push(canvas.toDataURL('image/jpeg', 0.72));
             } catch (e) {}
           }
           index++;
@@ -333,13 +334,13 @@
 
         v.onerror = () => {
           cleanup();
-          resolve([]);
+          resolve(thumbs.length > 0 ? thumbs : []);
         };
 
         setTimeout(() => {
           cleanup();
           resolve(thumbs);
-        }, 6000);
+        }, 15000);
       });
     };
 
@@ -519,7 +520,7 @@
 
       const refreshClipThumbnails = useCallback((clipId, url, start, dur) => {
         const clipPixelWidth = dur * timelineZoom;
-        const requiredCount = Math.max(1, Math.ceil(clipPixelWidth / 52));
+        const requiredCount = Math.max(6, Math.ceil(clipPixelWidth / 52));
 
         extractThumbnailsFromVideo(url, start, dur, requiredCount).then((thumbs) => {
           if (thumbs.length > 0) {
@@ -830,14 +831,12 @@
         [drawFrameToContext]
       );
 
-      // ĐỒNG BỘ PLAYHEAD CHÍNH XÁC CẢ VIDEO VÀ AUDIO
       const seekTo = useCallback(
         (targetTime, forceRender = false) => {
           const clamped = Math.max(0, Math.min(totalDuration, targetTime));
           currentTimeRef.current = clamped;
           setCurrentTime(clamped);
 
-          // Đồng bộ thẻ Audio Track
           const bgm = bgmAudioRef.current;
           if (bgm && audioClips.length > 0) {
             const curAud = audioClips.find((a) => clamped >= a.start && clamped < (a.start + a.duration));
@@ -1046,7 +1045,6 @@
         showToast('Đã trở về sảnh chính Neko');
       };
 
-      // VÒNG LẶP RENDER GAPLESS & GIỮ SYNC AUDIO
       useEffect(() => {
         if (currentPage !== 'editor') return;
 
@@ -1109,7 +1107,6 @@
 
                 currentTimeRef.current = exactTimelineTime;
 
-                // Sync Thẻ Audio Nền
                 const bgm = bgmAudioRef.current;
                 if (bgm && audioClips.length > 0) {
                   const curAud = audioClips.find(
@@ -2201,7 +2198,7 @@
                 </div>
               )}
 
-              {/* TIMELINE VIEWPORT VỚI ĐỒNG BỘ TRỤC VỊ TRÍ ÂM THANH */}
+              {/* TIMELINE VIEWPORT VỚI ĐỒNG BỘ TRỤC VỊ TRÍ ÂM THANH VÀ THUMBNAIL TRẢI ĐỀU 100% */}
               <div className="h-44 bg-[#101016] border-t border-b border-white/[0.08] flex relative shrink-0">
                 <div className="w-24 bg-[#0d0d13] border-r border-white/[0.08] flex flex-col justify-between py-2 px-1 z-20 shrink-0 select-none">
                   <div className="text-[10px] font-mono text-zinc-400 font-medium px-1">
@@ -2297,7 +2294,7 @@
                         ))}
                       </div>
 
-                      {/* TRACK 1: VIDEO CHÍNH CÓ THUMBNAIL HD */}
+                      {/* TRACK 1: VIDEO CHÍNH CÓ THUMBNAIL PHỦ KÍN 100% CHIỀU RỘNG CLIP */}
                       <div className="h-14 flex items-center gap-0">
                         {videoClips.map((clip, idx) => {
                           const effDur = clip.duration / (clip.speed || 1.0);
@@ -2346,13 +2343,16 @@
                                   </div>
                                 )}
 
-                                <div className="absolute inset-0 flex items-center overflow-hidden pointer-events-none rounded-sm">
+                                {/* DẢI FRAME THUMBNAIL PHỦ KÍN TOÀN BỘ KHÔNG BỊ TRỐNG ĐUÔI */}
+                                <div className="absolute inset-0 flex items-center overflow-hidden pointer-events-none rounded-sm bg-black">
                                   {clip.thumbnails && clip.thumbnails.length > 0 ? (
                                     clip.thumbnails.map((thumbUri, fIdx) => (
                                       <div
                                         key={fIdx}
-                                        style={{ width: '52px' }}
-                                        className="h-full shrink-0 border-r border-black/40 overflow-hidden bg-black"
+                                        style={{
+                                          flex: `1 0 ${Math.max(40, clipWidth / clip.thumbnails.length)}px`
+                                        }}
+                                        className="h-full border-r border-black/40 overflow-hidden bg-black shrink-0"
                                       >
                                         <img
                                           src={thumbUri}
@@ -2451,7 +2451,7 @@
                         </label>
                       </div>
 
-                      {/* TRACK 2: ĐÃ ĐỒNG BỘ CHUẨN XÁC VỊ TRÍ KHỚP HOÀN TOÀN TRỤC THỜI GIAN */}
+                      {/* TRACK 2: ĐỒNG BỘ TUYỆT ĐỐI VỊ TRÍ ÂM THANH */}
                       <div 
                         className="h-9 relative my-0.5"
                         style={{ width: `${totalDuration * timelineZoom}px` }}
