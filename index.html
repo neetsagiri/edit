@@ -249,7 +249,6 @@
       return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
     };
 
-    // Fix triệt để lỗi treo Promise khi lấy duration của Blob URL
     const getExactVideoDuration = (videoUrl) => {
       return new Promise((resolve) => {
         const v = document.createElement('video');
@@ -366,7 +365,13 @@
 
       const canvasRef = useRef(null);
       const coverCanvasRef = useRef(null);
-      const hiddenVideoRef = useRef(null);
+
+      // CƠ CHẾ DUAL VIDEO BUFFER GAPLESS
+      const videoARef = useRef(null);
+      const videoBRef = useRef(null);
+      const activePlayerRef = useRef('A'); 
+      const activeVideoElRef = useRef(null);
+
       const bgmAudioRef = useRef(null);
       const timelineScrollRef = useRef(null);
       const currentTimeRef = useRef(0);
@@ -383,75 +388,6 @@
       const showToast = (msg) => {
         setToastMsg(msg);
         setTimeout(() => setToastMsg(''), 2200);
-      };
-
-      // Tải và khởi tạo Video an toàn tuyệt đối
-      const handleCreateNewProject = async (file = null) => {
-        playNekoSound('click');
-        let newUrl = SAMPLE_WW_VIDEO;
-        let newName = 'Neko_Combat_Sample.mp4';
-        let newDur = 59.1;
-
-        if (file) {
-          newName = file.name;
-          newUrl = URL.createObjectURL(file);
-          showToast('Đang nạp video mèo...');
-          newDur = await getExactVideoDuration(newUrl);
-        }
-
-        const newClip = {
-          id: `clip_${Date.now()}`,
-          name: newName.length > 20 ? newName.substring(0, 18) + '...' : newName,
-          url: newUrl,
-          sourceDuration: newDur,
-          trimStart: 0,
-          duration: newDur,
-          speed: 1.0,
-          colorFilter: 'none',
-          transition: 'none',
-          transitionDuration: 0.5,
-          animIn: 'none',
-          animInDur: 0.5,
-          animOut: 'none',
-          animOutDur: 0.5,
-          volume: 1.0,
-          isScoreClip: false
-        };
-
-        setProjectTitle(newName.replace(/\.[^/.]+$/, ""));
-        setVideoClips([newClip]);
-        setActiveClipId(newClip.id);
-        activeClipIdRef.current = newClip.id;
-        setCurrentTime(0);
-        currentTimeRef.current = 0;
-        setSubtitles([]);
-        setAudioClips([]);
-        previewZoomRef.current = 1.0;
-        previewPanRef.current = { x: 0, y: 0 };
-        setCurrentPage('editor');
-
-        const vid = hiddenVideoRef.current;
-        if (vid) {
-          vid.pause();
-          vid.removeAttribute('crossorigin'); // Gỡ CORS để duyệt blob an toàn
-          vid.src = newUrl;
-          vid.load();
-          const onReady = () => {
-            renderCanvasFrame(0);
-            vid.removeEventListener('loadeddata', onReady);
-          };
-          vid.addEventListener('loadeddata', onReady);
-        }
-
-        if (timelineScrollRef.current) timelineScrollRef.current.scrollLeft = 0;
-        showToast(`Đã mở dự án: ${newDur.toFixed(1)}s`);
-      };
-
-      const handleBackToHome = () => {
-        pauseVideo();
-        playNekoSound('click');
-        setCurrentPage('home');
-        showToast('Đã trở về sảnh chính Neko');
       };
 
       const totalDuration = useMemo(() => {
@@ -524,16 +460,15 @@
         return { x: drawX, y: drawY, w: drawW, h: drawH };
       };
 
-      // VẼ CANVAS: Xử lý hiển thị chuẩn xác không bị đen màn hình
       const drawFrameToContext = useCallback(
         (ctx, targetW, targetH, time) => {
-          const vid = hiddenVideoRef.current;
+          const vid = activeVideoElRef.current || videoARef.current;
           const clipInfo = getCurrentClipInfo(time);
 
           ctx.fillStyle = '#050508';
           ctx.fillRect(0, 0, targetW, targetH);
 
-          if (!clipInfo || !vid || vid.readyState < 1) return;
+          if (!clipInfo || !vid || vid.readyState < 2) return;
 
           const { clip, clipOffsetTime, effectiveDuration } = clipInfo;
           const transDur = clip.transitionDuration || 0.45;
@@ -560,14 +495,12 @@
           let curTransX = 0;
           let curTransY = 0;
 
-          // Transition
           if (clip.transition && clip.transition !== 'none' && clipOffsetTime < transDur) {
             const rawProgress = Math.max(0, Math.min(1, clipOffsetTime / transDur));
             const easeProgress = easeInOutCubic(rawProgress);
 
-            if (clip.transition === 'fade') {
-              curAlpha = easeProgress;
-            } else if (clip.transition === 'zoom') {
+            if (clip.transition === 'fade') curAlpha = easeProgress;
+            else if (clip.transition === 'zoom') {
               curScale = 0.55 + easeProgress * 0.45;
               curAlpha = easeProgress;
             } else if (clip.transition === 'slide') {
@@ -582,7 +515,6 @@
             }
           }
 
-          // Anim In
           if ((!clip.transition || clip.transition === 'none' || clipOffsetTime >= transDur) && clip.animIn && clip.animIn !== 'none' && clipOffsetTime < inDur) {
             const pIn = easeInOutCubic(clipOffsetTime / inDur);
             if (clip.animIn === 'fade_in') curAlpha = Math.min(curAlpha, pIn);
@@ -592,7 +524,6 @@
             else if (clip.animIn === 'slide_in_up') curTransY += (1.0 - pIn) * targetH * 0.6;
           }
 
-          // Anim Out
           if (clip.animOut && clip.animOut !== 'none' && timeLeft < outDur) {
             const pOut = easeInOutCubic(timeLeft / outDur);
             if (clip.animOut === 'fade_out') curAlpha = Math.min(curAlpha, pOut);
@@ -626,9 +557,7 @@
 
           ctx.restore();
 
-          // Vẽ Chữ
           textBoxesRef.current.clear();
-
           subtitles.forEach((sub) => {
             if (time >= sub.start && time <= sub.end) {
               ctx.save();
@@ -758,41 +687,52 @@
           setCurrentTime(clamped);
 
           const info = getCurrentClipInfo(clamped);
-          const vid = hiddenVideoRef.current;
+          const curVid = activeVideoElRef.current || videoARef.current;
 
-          if (info && vid) {
+          if (info && curVid) {
             activeClipIdRef.current = info.clip.id;
             setActiveClipId(info.clip.id);
 
-            if (vid.src !== info.clip.url) {
-              vid.src = info.clip.url;
-              vid.load();
+            if (curVid.src !== info.clip.url) {
+              curVid.src = info.clip.url;
+              curVid.load();
             }
-            vid.playbackRate = info.clip.speed || 1.0;
-            vid.volume = isMuted ? 0 : (info.clip.volume ?? 1.0);
+            curVid.playbackRate = info.clip.speed || 1.0;
+            curVid.volume = isMuted ? 0 : (info.clip.volume ?? 1.0);
 
-            if (Math.abs(vid.currentTime - info.mediaSourceTime) > 0.04 || forceRender) {
-              vid.currentTime = info.mediaSourceTime;
+            if (Math.abs(curVid.currentTime - info.mediaSourceTime) > 0.04 || forceRender) {
+              curVid.currentTime = info.mediaSourceTime;
               const onSeek = () => {
                 renderCanvasFrame(clamped);
-                vid.removeEventListener('seeked', onSeek);
+                curVid.removeEventListener('seeked', onSeek);
               };
-              vid.addEventListener('seeked', onSeek);
+              curVid.addEventListener('seeked', onSeek);
               renderCanvasFrame(clamped);
             } else {
               renderCanvasFrame(clamped);
+            }
+
+            const nextIdx = info.clipIndex + 1;
+            if (nextIdx < videoClips.length) {
+              const nextClip = videoClips[nextIdx];
+              const standbyVid = activePlayerRef.current === 'A' ? videoBRef.current : videoARef.current;
+              if (standbyVid && standbyVid.src !== nextClip.url) {
+                standbyVid.src = nextClip.url;
+                standbyVid.load();
+                standbyVid.currentTime = nextClip.trimStart;
+              }
             }
           } else {
             renderCanvasFrame(clamped);
           }
         },
-        [totalDuration, getCurrentClipInfo, renderCanvasFrame, isMuted]
+        [totalDuration, getCurrentClipInfo, renderCanvasFrame, isMuted, videoClips]
       );
 
       const playVideo = () => {
         if (videoClips.length === 0) return;
         playNekoSound('click');
-        const vid = hiddenVideoRef.current;
+        const curVid = activeVideoElRef.current || videoARef.current;
         const bgm = bgmAudioRef.current;
 
         if (currentTimeRef.current >= totalDuration - 0.08) {
@@ -800,15 +740,15 @@
         }
 
         const info = getCurrentClipInfo(currentTimeRef.current);
-        if (info && vid) {
-          if (vid.src !== info.clip.url) {
-            vid.src = info.clip.url;
-            vid.load();
+        if (info && curVid) {
+          if (curVid.src !== info.clip.url) {
+            curVid.src = info.clip.url;
+            curVid.load();
           }
-          vid.playbackRate = info.clip.speed || 1.0;
-          vid.currentTime = info.mediaSourceTime;
-          vid.volume = isMuted ? 0 : (info.clip.volume ?? 1.0);
-          vid.play().catch(() => {});
+          curVid.playbackRate = info.clip.speed || 1.0;
+          curVid.currentTime = info.mediaSourceTime;
+          curVid.volume = isMuted ? 0 : (info.clip.volume ?? 1.0);
+          curVid.play().catch(() => {});
         }
 
         if (bgm && audioClips.length > 0) {
@@ -822,7 +762,8 @@
       const pauseVideo = () => {
         isPlayingRef.current = false;
         setIsPlaying(false);
-        if (hiddenVideoRef.current) hiddenVideoRef.current.pause();
+        if (videoARef.current) videoARef.current.pause();
+        if (videoBRef.current) videoBRef.current.pause();
         if (bgmAudioRef.current) bgmAudioRef.current.pause();
       };
 
@@ -831,37 +772,126 @@
         else playVideo();
       };
 
+      const handleCreateNewProject = async (file = null) => {
+        playNekoSound('click');
+        let newUrl = SAMPLE_WW_VIDEO;
+        let newName = 'Neko_Combat_Sample.mp4';
+        let newDur = 59.1;
+
+        if (file) {
+          newName = file.name;
+          newUrl = URL.createObjectURL(file);
+          showToast('Đang nạp video mèo...');
+          newDur = await getExactVideoDuration(newUrl);
+        }
+
+        const newClip = {
+          id: `clip_${Date.now()}`,
+          name: newName.length > 20 ? newName.substring(0, 18) + '...' : newName,
+          url: newUrl,
+          sourceDuration: newDur,
+          trimStart: 0,
+          duration: newDur,
+          speed: 1.0,
+          colorFilter: 'none',
+          transition: 'none',
+          transitionDuration: 0.5,
+          animIn: 'none',
+          animInDur: 0.5,
+          animOut: 'none',
+          animOutDur: 0.5,
+          volume: 1.0,
+          isScoreClip: false
+        };
+
+        setProjectTitle(newName.replace(/\.[^/.]+$/, ""));
+        setVideoClips([newClip]);
+        setActiveClipId(newClip.id);
+        activeClipIdRef.current = newClip.id;
+        setCurrentTime(0);
+        currentTimeRef.current = 0;
+        setSubtitles([]);
+        setAudioClips([]);
+        previewZoomRef.current = 1.0;
+        previewPanRef.current = { x: 0, y: 0 };
+        setCurrentPage('editor');
+
+        const vidA = videoARef.current;
+        if (vidA) {
+          vidA.pause();
+          vidA.removeAttribute('crossorigin');
+          vidA.src = newUrl;
+          vidA.load();
+          const onReady = () => {
+            renderCanvasFrame(0);
+            vidA.removeEventListener('loadeddata', onReady);
+          };
+          vidA.addEventListener('loadeddata', onReady);
+        }
+        activePlayerRef.current = 'A';
+        activeVideoElRef.current = vidA;
+
+        if (timelineScrollRef.current) timelineScrollRef.current.scrollLeft = 0;
+        showToast(`Đã mở dự án: ${newDur.toFixed(1)}s`);
+      };
+
+      const handleBackToHome = () => {
+        pauseVideo();
+        playNekoSound('click');
+        setCurrentPage('home');
+        showToast('Đã trở về sảnh chính Neko');
+      };
+
+      // VÒNG LẶP RENDER KHÔNG KHỰNG (GAPLESS LOOP)
       useEffect(() => {
         if (currentPage !== 'editor') return;
 
         const loop = (now) => {
           if (isPlayingRef.current) {
-            const vid = hiddenVideoRef.current;
             const currentClipId = activeClipIdRef.current;
             const curIdx = videoClips.findIndex((c) => c.id === currentClipId);
             const activeIdx = curIdx >= 0 ? curIdx : 0;
             const curClip = videoClips[activeIdx];
+            const curVid = activeVideoElRef.current || videoARef.current;
 
-            if (vid && curClip) {
+            if (curVid && curClip) {
               const spd = curClip.speed || 1.0;
               const clipSourceEnd = curClip.trimStart + curClip.duration;
-              const curSourceTime = vid.currentTime;
+              const curSourceTime = curVid.currentTime;
 
-              if (curSourceTime >= clipSourceEnd - 0.03) {
+              if (curSourceTime >= clipSourceEnd - 0.04) {
                 if (activeIdx < videoClips.length - 1) {
                   const nextClip = videoClips[activeIdx + 1];
                   const nextSpd = nextClip.speed || 1.0;
 
-                  activeClipIdRef.current = nextClip.id;
-                  setActiveClipId(nextClip.id);
+                  // 1. Cùng chung 1 video gốc (tách clip) -> Không seek lại, để video chạy tiếp
+                  if (curClip.url === nextClip.url && Math.abs(clipSourceEnd - nextClip.trimStart) < 0.08) {
+                    activeClipIdRef.current = nextClip.id;
+                    setActiveClipId(nextClip.id);
+                    curVid.playbackRate = nextSpd;
+                    curVid.volume = isMuted ? 0 : (nextClip.volume ?? 1.0);
+                  } else {
+                    // 2. Clip khác hoặc có nhảy thời gian -> Đổi sang player dự phòng trong 0ms
+                    const nextPlayer = activePlayerRef.current === 'A' ? 'B' : 'A';
+                    const nextVid = nextPlayer === 'A' ? videoARef.current : videoBRef.current;
 
-                  if (vid.src !== nextClip.url) {
-                    vid.src = nextClip.url;
-                    vid.load();
+                    activePlayerRef.current = nextPlayer;
+                    activeVideoElRef.current = nextVid;
+                    activeClipIdRef.current = nextClip.id;
+                    setActiveClipId(nextClip.id);
+
+                    if (nextVid) {
+                      if (nextVid.src !== nextClip.url) {
+                        nextVid.src = nextClip.url;
+                        nextVid.load();
+                      }
+                      nextVid.playbackRate = nextSpd;
+                      nextVid.currentTime = nextClip.trimStart;
+                      nextVid.volume = isMuted ? 0 : (nextClip.volume ?? 1.0);
+                      nextVid.play().catch(() => {});
+                    }
+                    curVid.pause();
                   }
-                  vid.playbackRate = nextSpd;
-                  vid.currentTime = nextClip.trimStart;
-                  vid.play().catch(() => {});
                 } else {
                   pauseVideo();
                   seekTo(totalDuration, true);
@@ -900,7 +930,51 @@
         return () => {
           if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
-      }, [currentPage, videoClips, totalDuration, timelineZoom, renderCanvasFrame, seekTo, getCurrentClipInfo]);
+      }, [currentPage, videoClips, totalDuration, timelineZoom, renderCanvasFrame, seekTo, isMuted]);
+
+      const handleSplitClipAtPlayhead = () => {
+        const t = currentTimeRef.current;
+        const info = getCurrentClipInfo(t);
+        if (!info) return;
+
+        const { clip, clipIndex, clipOffsetTime } = info;
+        const spd = clip.speed || 1.0;
+        const sourceOffset = clipOffsetTime * spd;
+
+        if (clipOffsetTime < 0.1 || (clip.duration / spd) - clipOffsetTime < 0.1) {
+          showToast('Điểm cắt phải cách 2 đầu ít nhất 0.1s');
+          return;
+        }
+
+        playNekoSound('split');
+        const clip1 = { 
+          ...clip, 
+          duration: Number(sourceOffset.toFixed(2)) 
+        };
+        const clip2 = {
+          ...clip,
+          id: `clip_${Date.now()}_part2`,
+          trimStart: Number((clip.trimStart + sourceOffset).toFixed(2)),
+          duration: Number((clip.duration - sourceOffset).toFixed(2)),
+          transition: 'none',
+          transitionDuration: 0.5,
+          animIn: 'none',
+          animInDur: 0.5,
+          animOut: 'none',
+          animOutDur: 0.5,
+          isScoreClip: false
+        };
+
+        const newClips = [...videoClips];
+        newClips.splice(clipIndex, 1, clip1, clip2);
+        setVideoClips(newClips);
+        
+        setActiveClipId(clip1.id);
+        activeClipIdRef.current = clip1.id;
+
+        renderCanvasFrame(t);
+        showToast('🐾 Đã tách clip! Không gián đoạn luồng phát');
+      };
 
       const handlePreviewPointerDown = (e) => {
         const canvas = canvasRef.current;
@@ -1093,6 +1167,8 @@
         const deltaX = e.clientX - data.startX;
         const deltaSec = (deltaX / timelineZoom) * data.speed;
 
+        const curVid = activeVideoElRef.current || videoARef.current;
+
         if (data.handle === 'right') {
           const maxAllowed = data.sourceDur - data.initTrimStart;
           const newDur = Math.max(0.3, Math.min(maxAllowed, data.initDuration + deltaSec));
@@ -1101,9 +1177,8 @@
             prev.map((c) => (c.id === data.clipId ? { ...c, duration: Number(newDur.toFixed(2)) } : c))
           );
 
-          const vid = hiddenVideoRef.current;
-          if (vid) {
-            vid.currentTime = data.initTrimStart + newDur;
+          if (curVid) {
+            curVid.currentTime = data.initTrimStart + newDur;
             renderCanvasFrame(currentTimeRef.current);
           }
         } else if (data.handle === 'left') {
@@ -1120,9 +1195,8 @@
             )
           );
 
-          const vid = hiddenVideoRef.current;
-          if (vid) {
-            vid.currentTime = newTrimStart;
+          if (curVid) {
+            curVid.currentTime = newTrimStart;
             renderCanvasFrame(currentTimeRef.current);
           }
         }
@@ -1137,180 +1211,6 @@
         }
       };
 
-      const handleSplitClipAtPlayhead = () => {
-        const t = currentTimeRef.current;
-        const info = getCurrentClipInfo(t);
-        if (!info) return;
-
-        const { clip, clipIndex, clipOffsetTime } = info;
-        const spd = clip.speed || 1.0;
-        const sourceOffset = clipOffsetTime * spd;
-
-        if (clipOffsetTime < 0.1 || (clip.duration / spd) - clipOffsetTime < 0.1) {
-          showToast('Điểm cắt phải cách 2 đầu ít nhất 0.1s');
-          return;
-        }
-
-        playNekoSound('split');
-        const clip1 = { 
-          ...clip, 
-          duration: Number(sourceOffset.toFixed(2)) 
-        };
-        const clip2 = {
-          ...clip,
-          id: `clip_${Date.now()}_part2`,
-          trimStart: Number((clip.trimStart + sourceOffset).toFixed(2)),
-          duration: Number((clip.duration - sourceOffset).toFixed(2)),
-          transition: 'none',
-          transitionDuration: 0.5,
-          animIn: 'none',
-          animInDur: 0.5,
-          animOut: 'none',
-          animOutDur: 0.5,
-          isScoreClip: false
-        };
-
-        const newClips = [...videoClips];
-        newClips.splice(clipIndex, 1, clip1, clip2);
-        setVideoClips(newClips);
-        
-        setActiveClipId(clip1.id);
-        activeClipIdRef.current = clip1.id;
-
-        renderCanvasFrame(t);
-        showToast('🐾 Đã tách clip! Sẵn sàng gán chuyển tiếp.');
-      };
-
-      const handleSubTrimPointerDown = (e, handleType, sub) => {
-        e.stopPropagation();
-        e.preventDefault();
-        pauseVideo();
-        playNekoSound('click');
-
-        isSubTrimmingRef.current = true;
-        subTrimDataRef.current = {
-          handle: handleType,
-          subId: sub.id,
-          startX: e.clientX,
-          initStart: sub.start,
-          initEnd: sub.end
-        };
-
-        try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
-      };
-
-      const handleSubTrimPointerMove = (e) => {
-        if (!isSubTrimmingRef.current) return;
-        const data = subTrimDataRef.current;
-        const deltaX = e.clientX - data.startX;
-        const deltaSec = deltaX / timelineZoom;
-
-        setSubtitles((prev) =>
-          prev.map((s) => {
-            if (s.id !== data.subId) return s;
-            if (data.handle === 'right') {
-              const newEnd = Math.max(s.start + 0.3, Math.min(totalDuration, data.initEnd + deltaSec));
-              return { ...s, end: Number(newEnd.toFixed(2)) };
-            } else if (data.handle === 'left') {
-              const newStart = Math.max(0, Math.min(s.end - 0.3, data.initStart + deltaSec));
-              return { ...s, start: Number(newStart.toFixed(2)) };
-            } else if (data.handle === 'move') {
-              const dur = data.initEnd - data.initStart;
-              let nStart = data.initStart + deltaSec;
-              if (nStart < 0) nStart = 0;
-              if (nStart + dur > totalDuration) nStart = totalDuration - dur;
-              return { ...s, start: Number(nStart.toFixed(2)), end: Number((nStart + dur).toFixed(2)) };
-            }
-            return s;
-          })
-        );
-        renderCanvasFrame(currentTimeRef.current);
-      };
-
-      const handleSubTrimPointerUp = (e) => {
-        if (isSubTrimmingRef.current) {
-          isSubTrimmingRef.current = false;
-          try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
-          showToast('🐾 Đã cập nhật độ dài chữ');
-        }
-      };
-
-      const applyMatrixTemplate = async (customVideoFile = null) => {
-        const url = customVideoFile ? URL.createObjectURL(customVideoFile) : SAMPLE_WW_VIDEO;
-        const name = customVideoFile ? customVideoFile.name : 'Neko_Combat_Sample.mp4';
-        showToast('🐾 NekoAuto đang dựng kịch bản tối ưu...');
-
-        const trueDuration = await getExactVideoDuration(url);
-        const chosenStyle = NEKO_STYLES.find((s) => s.id === selectedStyleId) || NEKO_STYLES[0];
-
-        const scoreDuration = Math.min(2.0, Math.max(0.5, trueDuration * 0.15));
-        const combatDuration = Math.max(1.0, trueDuration - scoreDuration);
-
-        const scoreClip = {
-          id: `score_${Date.now()}`,
-          name: '01. Điểm Neko (Hook 2s)',
-          url,
-          sourceDuration: trueDuration,
-          trimStart: Math.max(0, trueDuration - scoreDuration),
-          duration: scoreDuration,
-          speed: 0.85,
-          colorFilter: 'high-contrast',
-          transition: 'flash',
-          transitionDuration: 0.45,
-          animIn: 'zoom_in',
-          animInDur: 0.45,
-          animOut: 'flash_out',
-          animOutDur: 0.3,
-          volume: 1.0,
-          isScoreClip: true
-        };
-
-        const combatClip = {
-          id: `combat_${Date.now()}`,
-          name: `02. Combat (${chosenStyle.name})`,
-          url,
-          sourceDuration: trueDuration,
-          trimStart: 0,
-          duration: combatDuration,
-          speed: 1.0,
-          colorFilter: chosenStyle.id,
-          transition: 'zoom',
-          transitionDuration: 0.5,
-          animIn: 'none',
-          animInDur: 0.4,
-          animOut: 'fade_out',
-          animOutDur: 0.4,
-          volume: 1.0,
-          isScoreClip: false
-        };
-
-        const finalClips = autoScoreLoop ? [scoreClip, combatClip] : [{ ...combatClip, duration: trueDuration }];
-
-        setProjectTitle(name.replace(/\.[^/.]+$/, ""));
-        setVideoClips(finalClips);
-        setActiveClipId(finalClips[0].id);
-        activeClipIdRef.current = finalClips[0].id;
-        setSelectedRatio(ASPECT_RATIOS[0]);
-        setCurrentTime(0);
-        currentTimeRef.current = 0;
-        setSubtitles([]);
-        setAudioClips([]);
-        setShowTemplateModal(false);
-
-        const vid = hiddenVideoRef.current;
-        if (vid) {
-          vid.pause();
-          vid.removeAttribute('crossorigin');
-          vid.src = url;
-          vid.load();
-        }
-
-        setCurrentPage('editor');
-        if (timelineScrollRef.current) timelineScrollRef.current.scrollLeft = 0;
-        playNekoSound('success');
-        showToast(`🐾 MatrixAuto sẵn sàng: ${trueDuration.toFixed(1)}s`);
-      };
-
       const handleExportMP4 = async () => {
         if (videoClips.length === 0 || isExporting) return;
         pauseVideo();
@@ -1318,7 +1218,7 @@
         setExportProgress(0);
         playNekoSound('click');
 
-        const vid = hiddenVideoRef.current;
+        const vid = activeVideoElRef.current || videoARef.current;
         const bgm = bgmAudioRef.current;
         if (!vid) {
           setIsExporting(false);
@@ -1401,7 +1301,7 @@
 
           setIsExporting(false);
           playNekoSound('success');
-          showToast('🐾 Xuất video hoàn tất với đầy đủ âm thanh!');
+          showToast('🐾 Xuất video hoàn tất!');
           seekTo(0, true);
         };
 
@@ -1450,14 +1350,26 @@
       return (
         <div className="flex flex-col h-full w-full bg-[#050508] text-zinc-100 select-none overflow-hidden relative font-sans">
           
-          {/* Thẻ video duy nhất nạp nguồn chuẩn, tránh lỗi chặn blob CORS */}
+          {/* CẶP VIDEO DUAL BUFFER TRUYỀN HÌNH KHÔNG TRỄ */}
           <video
-            ref={hiddenVideoRef}
+            ref={videoARef}
             className="hidden"
             playsInline
+            preload="auto"
             muted={isMuted}
-            onLoadedMetadata={() => renderCanvasFrame(currentTimeRef.current)}
-            onError={() => showToast('🐾 Lỗi tải video, vui lòng chọn file từ thiết bị')}
+            onLoadedMetadata={() => {
+              if (activePlayerRef.current === 'A') renderCanvasFrame(currentTimeRef.current);
+            }}
+          />
+          <video
+            ref={videoBRef}
+            className="hidden"
+            playsInline
+            preload="auto"
+            muted={isMuted}
+            onLoadedMetadata={() => {
+              if (activePlayerRef.current === 'B') renderCanvasFrame(currentTimeRef.current);
+            }}
           />
 
           <audio
@@ -1490,25 +1402,6 @@
                     <span className="text-[#ffb703]">Pro</span>
                   </div>
                 </div>
-
-                <button
-                  onClick={() => {
-                    playNekoSound('click');
-                    setShowTemplateModal(true);
-                  }}
-                  className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#ff2a7a] via-[#ff5364] to-[#ffa726] text-black font-extrabold text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(255,42,122,0.45)] active:scale-95 transition"
-                >
-                  <img
-                    src="wwlogo.jpg"
-                    alt="MatrixAuto Logo"
-                    className="w-4 h-4 rounded-full object-cover border border-black/40 shrink-0 shadow-sm"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = 'https://placehold.co/40x40/15131d/ff2a7a?text=WW';
-                    }}
-                  />
-                  <span>MatrixAuto</span>
-                </button>
               </header>
 
               <div className="flex-1 overflow-y-auto neko-scroll px-4 pt-6 space-y-4 z-10">
@@ -1547,53 +1440,6 @@
                     </div>
                   </div>
                 </div>
-
-                <div
-                  onClick={() => {
-                    playNekoSound('click');
-                    setShowTemplateModal(true);
-                  }}
-                  className="relative cursor-pointer"
-                >
-                  <div className="rounded-[26px] bg-[#121118]/90 border border-white/[0.07] p-5 shadow-2xl relative overflow-hidden backdrop-blur-sm hover:border-pink-500/40 transition">
-                    <div className="absolute -top-4 -left-4 text-pink-500/10 pointer-events-none scale-150">
-                      <CatPawSvg className="w-24 h-24" />
-                    </div>
-
-                    <div className="relative z-10 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-lg overflow-hidden border border-pink-500/50 shadow-[0_0_10px_rgba(255,42,122,0.3)] bg-zinc-900 shrink-0">
-                            <img
-                              src="wwlogo.jpg"
-                              alt="MatrixAuto WW Logo"
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = 'https://placehold.co/80x80/1a1824/ff2a7a?text=WW';
-                              }}
-                            />
-                          </div>
-                          <h2 className="text-xl font-extrabold text-white">Mẫu MatrixAuto Cắt Sẵn</h2>
-                        </div>
-                        <span className="text-lg">⚡</span>
-                      </div>
-                      <p className="text-xs text-zinc-400 font-medium leading-relaxed max-w-[280px]">
-                        Tự trích 2s điểm cao cuối trận lên đầu clip
-                      </p>
-
-                      <div className="mt-4 w-full py-3.5 px-4 rounded-full bg-gradient-to-r from-[#ff2a7a] via-[#ff5e57] to-[#ffb300] text-black font-extrabold text-sm flex items-center justify-center gap-2 shadow-[0_4px_22px_rgba(255,42,122,0.45)] hover:brightness-105 active:scale-[0.98] transition">
-                        <img
-                          src="wwlogo.jpg"
-                          alt="WW Icon"
-                          className="w-4 h-4 rounded-full object-cover border border-black/40 shrink-0"
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                        <span>Mở Cấu Hình MatrixAuto</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -1623,13 +1469,6 @@
                       }}
                     />
                   </div>
-
-                  <button
-                    onClick={() => showToast('🐾 Tìm kiếm hiệu ứng Neko')}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-300 active:scale-90"
-                  >
-                    <SearchIcon className="w-5 h-5" />
-                  </button>
                 </div>
 
                 <div className="flex items-center gap-2 relative">
@@ -1742,71 +1581,8 @@
                 </div>
               </div>
 
-              {activeSub && (
-                <div className="h-8 bg-[#161324] border-t border-b border-pink-500/30 flex items-center justify-between px-3 text-[11px] font-bold text-zinc-200 shrink-0 z-20">
-                  <span className="text-pink-400 truncate max-w-[120px]">
-                    💬 {activeSub.text}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const newTxt = prompt('Chỉnh sửa nội dung chữ:', activeSub.text);
-                        if (newTxt && newTxt.trim()) {
-                          setSubtitles((prev) =>
-                            prev.map((s) => (s.id === activeSub.id ? { ...s, text: newTxt.trim() } : s))
-                          );
-                          renderCanvasFrame(currentTimeRef.current);
-                        }
-                      }}
-                      className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      onClick={() => {
-                        const dup = {
-                          ...activeSub,
-                          id: `sub_${Date.now()}`,
-                          start: currentTimeRef.current,
-                          end: Math.min(totalDuration, currentTimeRef.current + (activeSub.end - activeSub.start))
-                        };
-                        setSubtitles([...subtitles, dup]);
-                        setActiveSubId(dup.id);
-                        playNekoSound('success');
-                        showToast('🐾 Đã nhân bản chữ!');
-                        renderCanvasFrame(currentTimeRef.current);
-                      }}
-                      className="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
-                    >
-                      Nhân bản
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActiveBottomMenu('text');
-                        setShowToolSheet(true);
-                      }}
-                      className="px-2 py-0.5 rounded bg-pink-900/60 text-pink-300"
-                    >
-                      Đổi kiểu
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSubtitles(subtitles.filter((s) => s.id !== activeSub.id));
-                        setActiveSubId(null);
-                        playNekoSound('split');
-                        showToast('Đã xóa chữ');
-                        renderCanvasFrame(currentTimeRef.current);
-                      }}
-                      className="px-2 py-0.5 rounded bg-rose-900/60 text-rose-300"
-                    >
-                      Xóa
-                    </button>
-                  </div>
-                </div>
-              )}
-
+              {/* TIMELINE VIEWPORT (GAPLESS CẮT CHUẨN XÁC) */}
               <div className="h-44 bg-[#101016] border-t border-b border-white/[0.08] flex relative shrink-0">
-                
                 <div className="w-24 bg-[#0d0d13] border-r border-white/[0.08] flex flex-col justify-between py-2 px-1 z-20 shrink-0 select-none">
                   <div className="text-[10px] font-mono text-zinc-400 font-medium px-1">
                     <span className="text-white font-bold">{formatTimeCode(currentTime)}</span>
@@ -1817,7 +1593,8 @@
                     <button
                       onClick={() => {
                         setIsMuted(!isMuted);
-                        if (hiddenVideoRef.current) hiddenVideoRef.current.volume = !isMuted ? 0 : 1;
+                        if (videoARef.current) videoARef.current.volume = !isMuted ? 0 : 1;
+                        if (videoBRef.current) videoBRef.current.volume = !isMuted ? 0 : 1;
                         showToast(!isMuted ? '🐾 Đã tắt tiếng' : '🐾 Đã bật tiếng');
                       }}
                       className="flex flex-col items-center gap-0.5 text-zinc-400 hover:text-white py-1 rounded"
@@ -1914,12 +1691,6 @@
                                   activeClipIdRef.current = clip.id;
                                   setActiveSubId(null);
                                   playNekoSound('click');
-
-                                  // CHỈ MỞ POPUP KHI THỰC SỰ LÀ MATRIXAUTO
-                                  if (clip.isScoreClip) {
-                                    setScoreTrimWindowStart(clip.trimStart);
-                                    setShowScoreSelectModal(true);
-                                  }
                                 }}
                                 style={{ width: `${clipWidth}px` }}
                                 className={`h-full flex items-center justify-between cursor-pointer shrink-0 relative overflow-visible transition-colors ${
@@ -1946,25 +1717,10 @@
                                   </div>
                                 )}
 
-                                <div className="absolute inset-0 flex items-center overflow-hidden opacity-45 pointer-events-none">
-                                  {[...Array(Math.max(1, Math.ceil(clipWidth / 48)))].map((_, fIdx) => (
-                                    <div
-                                      key={fIdx}
-                                      className="w-12 h-full shrink-0 border-r border-black/40 bg-cover bg-center"
-                                      style={{
-                                        backgroundImage: `url('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=120&auto=format&fit=crop&q=80')`
-                                      }}
-                                    />
-                                  ))}
-                                </div>
-
-                                <div className="flex flex-col min-w-0 z-10 pointer-events-none pl-4">
+                                <div className="flex flex-col min-w-0 z-10 pointer-events-none pl-3">
                                   <span className="text-[10px] font-bold text-white drop-shadow truncate">
                                     {clip.name}
                                   </span>
-                                  {clip.isScoreClip && (
-                                    <span className="text-[8px] text-pink-400 font-bold truncate">Chạm chọn 2s ⚡</span>
-                                  )}
                                 </div>
 
                                 {isSelected && (
@@ -2000,44 +1756,6 @@
                             </React.Fragment>
                           );
                         })}
-
-                        <label className="w-10 h-10 ml-2 rounded-lg bg-[#1a1a24] border border-white/[0.1] hover:border-white flex items-center justify-center text-zinc-300 font-bold text-lg active:scale-90 cursor-pointer shrink-0 transition" title="Thêm video mới">
-                          +
-                          <input
-                            type="file"
-                            accept="video/*"
-                            onChange={async (e) => {
-                              const f = e.target.files?.[0];
-                              if (f) {
-                                const url = URL.createObjectURL(f);
-                                const dur = await getExactVideoDuration(url);
-                                setVideoClips((prev) => [
-                                  ...prev,
-                                  {
-                                    id: `clip_${Date.now()}`,
-                                    name: f.name.substring(0, 16),
-                                    url,
-                                    sourceDuration: dur,
-                                    trimStart: 0,
-                                    duration: dur,
-                                    speed: 1.0,
-                                    colorFilter: 'none',
-                                    transition: 'none',
-                                    transitionDuration: 0.5,
-                                    animIn: 'none',
-                                    animInDur: 0.5,
-                                    animOut: 'none',
-                                    animOutDur: 0.5,
-                                    volume: 1.0,
-                                    isScoreClip: false
-                                  }
-                                ]);
-                                showToast(`🐾 Đã thêm clip ${dur.toFixed(1)}s`);
-                              }
-                            }}
-                            className="hidden"
-                          />
-                        </label>
                       </div>
 
                       <div className="h-7 flex items-center gap-2">
@@ -2047,34 +1765,6 @@
                             <span className="font-semibold truncate max-w-[140px]">{aud.name}</span>
                           </div>
                         ))}
-                        <label className="text-[11px] text-zinc-400 flex items-center gap-1.5 bg-[#15151f] hover:text-white px-2.5 py-1 rounded-md border border-white/[0.06] shrink-0 active:scale-95 cursor-pointer">
-                          <span className="text-zinc-500">+</span>
-                          <span>Thêm âm thanh</span>
-                          <input
-                            type="file"
-                            accept="audio/*"
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) {
-                                const url = URL.createObjectURL(f);
-                                const newAudio = {
-                                  id: `audio_${Date.now()}`,
-                                  name: f.name,
-                                  url,
-                                  duration: totalDuration
-                                };
-                                setAudioClips([newAudio]);
-                                if (bgmAudioRef.current) {
-                                  bgmAudioRef.current.src = url;
-                                  bgmAudioRef.current.play().catch(() => {});
-                                }
-                                playNekoSound('success');
-                                showToast(`🐾 Đã thêm nhạc: ${f.name}`);
-                              }
-                            }}
-                            className="hidden"
-                          />
-                        </label>
                       </div>
 
                       <div className="h-7 relative flex items-center">
@@ -2099,60 +1789,19 @@
                                   : 'bg-rose-950/60 border border-rose-800/40 text-rose-300 hover:border-rose-400'
                               }`}
                             >
-                              {isSubSelected && (
-                                <div
-                                  onPointerDown={(e) => handleSubTrimPointerDown(e, 'left', sub)}
-                                  onPointerMove={handleSubTrimPointerMove}
-                                  onPointerUp={handleSubTrimPointerUp}
-                                  onPointerCancel={handleSubTrimPointerUp}
-                                  className="w-2.5 h-full -ml-1 bg-white rounded-l flex items-center justify-center cursor-ew-resize active:bg-pink-300"
-                                >
-                                  <div className="w-[2px] h-3 bg-black/80 rounded" />
-                                </div>
-                              )}
-
-                              <div
-                                onPointerDown={(e) => handleSubTrimPointerDown(e, 'move', sub)}
-                                onPointerMove={handleSubTrimPointerMove}
-                                onPointerUp={handleSubTrimPointerUp}
-                                onPointerCancel={handleSubTrimPointerUp}
-                                className="flex-1 truncate text-[10px] font-bold px-1 select-none"
-                              >
+                              <div className="flex-1 truncate text-[10px] font-bold px-1 select-none">
                                 {sub.text}
                               </div>
-
-                              {isSubSelected && (
-                                <div
-                                  onPointerDown={(e) => handleSubTrimPointerDown(e, 'right', sub)}
-                                  onPointerMove={handleSubTrimPointerMove}
-                                  onPointerUp={handleSubTrimPointerUp}
-                                  onPointerCancel={handleSubTrimPointerUp}
-                                  className="w-2.5 h-full -ml-1 bg-white rounded-r flex items-center justify-center cursor-ew-resize active:bg-pink-300"
-                                >
-                                  <div className="w-[2px] h-3 bg-black/80 rounded" />
-                                </div>
-                              )}
                             </div>
                           );
                         })}
-
-                        <button
-                          onClick={() => {
-                            setActiveBottomMenu('text');
-                            setShowToolSheet(true);
-                            playNekoSound('click');
-                          }}
-                          className="text-[11px] text-zinc-400 flex items-center gap-1 bg-[#15151f] hover:text-white px-2.5 py-1 rounded-md border border-white/[0.06] shrink-0 active:scale-95"
-                        >
-                          <span className="text-zinc-500">+</span>
-                          <span>Thêm chữ</span>
-                        </button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
+              {/* FOOTER TOOLBAR */}
               <footer className="h-16 px-2 flex items-center justify-around bg-[#08080c] border-t border-white/[0.06] shrink-0 z-30">
                 {activeClip ? (
                   <div className="flex items-center justify-between w-full px-2 overflow-x-auto no-scrollbar">
@@ -2257,7 +1906,6 @@
                     { id: 'text', label: 'Văn bản', icon: '💬' },
                     { id: 'effects', label: 'Hiệu ứng', icon: '✨' },
                     { id: 'overlay', label: 'Lớp phủ', icon: '🔲' },
-                    { id: 'subtitles', label: 'Phụ đề', icon: '📝' },
                     { id: 'filter', label: 'Bộ lọc', icon: '🎨' }
                   ].map((menu) => (
                     <button
@@ -2317,37 +1965,11 @@
                           setVideoClips((prev) =>
                             prev.map((c) => (c.id === activeClip.id ? { ...c, volume: scaledVol } : c))
                           );
-                          const vid = hiddenVideoRef.current;
-                          if (vid) vid.volume = isMuted ? 0 : Math.min(1.0, scaledVol);
+                          const curVid = activeVideoElRef.current || videoARef.current;
+                          if (curVid) curVid.volume = isMuted ? 0 : Math.min(1.0, scaledVol);
                         }}
                         className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#ff2a7a]"
                       />
-                    </div>
-
-                    <div className="space-y-2 pt-2 border-t border-white/[0.06]">
-                      <label className="flex items-center justify-between text-xs text-zinc-300 cursor-pointer">
-                        <span className="flex items-center gap-1.5">
-                          <span className="text-pink-400">🩵</span> Giảm tiếng ồn
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={noiseReduction}
-                          onChange={(e) => setNoiseReduction(e.target.checked)}
-                          className="w-4 h-4 accent-pink-500 rounded cursor-pointer"
-                        />
-                      </label>
-
-                      <label className="flex items-center justify-between text-xs text-zinc-300 cursor-pointer">
-                        <span className="flex items-center gap-1.5">
-                          <span className="text-pink-400">🩵</span> Điều chỉnh độ ồn
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={voiceBalance}
-                          onChange={(e) => setVoiceBalance(e.target.checked)}
-                          className="w-4 h-4 accent-pink-500 rounded cursor-pointer"
-                        />
-                      </label>
                     </div>
                   </div>
                 </div>
@@ -2369,28 +1991,6 @@
                       ✕
                     </button>
                   </div>
-
-                  <div className="py-2 flex items-center justify-between text-xs text-zinc-300">
-                    <span>Thời lượng chuyển tiếp:</span>
-                    <span className="font-mono text-pink-300 font-bold">
-                      {(videoClips[activeTransitionIndex + 1]?.transitionDuration || 0.5).toFixed(1)}s
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0.2}
-                    max={1.5}
-                    step={0.1}
-                    value={videoClips[activeTransitionIndex + 1]?.transitionDuration || 0.5}
-                    onChange={(e) => {
-                      const dur = parseFloat(e.target.value);
-                      setVideoClips((prev) =>
-                        prev.map((c, idx) => (idx === activeTransitionIndex + 1 ? { ...c, transitionDuration: dur } : c))
-                      );
-                      renderCanvasFrame(currentTimeRef.current);
-                    }}
-                    className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#ff2a7a] mb-4"
-                  />
 
                   <div className="grid grid-cols-2 gap-2 max-h-[38vh] overflow-y-auto neko-scroll pr-1">
                     {TRANSITIONS.map((trans) => {
@@ -2421,29 +2021,6 @@
                         </button>
                       );
                     })}
-                  </div>
-
-                  <div className="pt-3 mt-3 border-t border-white/[0.06] flex items-center justify-between">
-                    <button
-                      onClick={() => {
-                        const chosen = videoClips[activeTransitionIndex + 1]?.transition || 'none';
-                        const dur = videoClips[activeTransitionIndex + 1]?.transitionDuration || 0.5;
-                        setVideoClips((prev) =>
-                          prev.map((c, i) => (i > 0 ? { ...c, transition: chosen, transitionDuration: dur } : c))
-                        );
-                        playNekoSound('success');
-                        showToast('🐾 Đã áp dụng hiệu ứng cho tất cả khe nối!');
-                      }}
-                      className="text-xs text-pink-400 font-bold px-3 py-1.5 rounded-lg bg-pink-950/60 border border-pink-800/60 active:scale-95 transition"
-                    >
-                      Áp dụng cho tất cả khe
-                    </button>
-                    <button
-                      onClick={() => setShowTransitionDrawer(false)}
-                      className="px-4 py-1.5 rounded-lg bg-[#ff2a7a] text-white font-extrabold text-xs active:scale-95 shadow"
-                    >
-                      Xong
-                    </button>
                   </div>
                 </div>
               )}
@@ -2483,34 +2060,6 @@
                       Hiệu Ứng Ra (Out)
                     </button>
                   </div>
-
-                  <div className="py-1 flex items-center justify-between text-xs text-zinc-300">
-                    <span>Thời lượng hiệu ứng {animTab === 'in' ? 'vào' : 'ra'}:</span>
-                    <span className="font-mono text-pink-300 font-bold">
-                      {animTab === 'in' ? (activeClip.animInDur || 0.5).toFixed(1) : (activeClip.animOutDur || 0.5).toFixed(1)}s
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0.2}
-                    max={1.5}
-                    step={0.1}
-                    value={animTab === 'in' ? (activeClip.animInDur || 0.5) : (activeClip.animOutDur || 0.5)}
-                    onChange={(e) => {
-                      const dur = parseFloat(e.target.value);
-                      setVideoClips((prev) =>
-                        prev.map((c) =>
-                          c.id === activeClip.id
-                            ? animTab === 'in'
-                              ? { ...c, animInDur: dur }
-                              : { ...c, animOutDur: dur }
-                            : c
-                        )
-                      );
-                      renderCanvasFrame(currentTimeRef.current);
-                    }}
-                    className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#ff2a7a] mb-3"
-                  />
 
                   <div className="grid grid-cols-2 gap-2 max-h-[35vh] overflow-y-auto neko-scroll">
                     {(animTab === 'in' ? ANIM_IN_OPTIONS : ANIM_OUT_OPTIONS).map((opt) => {
@@ -2590,238 +2139,6 @@
                     </div>
                   )}
 
-                  {activeBottomMenu === 'effects' && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {TRANSITIONS.map((trans) => (
-                        <button
-                          key={trans.id}
-                          onClick={() => {
-                            if (activeClip) {
-                              setVideoClips((prev) =>
-                                prev.map((c) => (c.id === activeClip.id ? { ...c, transition: trans.id } : c))
-                              );
-                              playNekoSound('click');
-                              showToast(`🐾 Chuyển tiếp: ${trans.name}`);
-                              renderCanvasFrame(currentTimeRef.current);
-                            }
-                          }}
-                          className={`p-3 rounded-xl border text-left text-xs font-bold flex items-center gap-2 ${
-                            activeClip?.transition === trans.id ? 'bg-pink-500/20 border-pink-400 text-pink-300' : 'bg-zinc-900 border-white/[0.06] text-zinc-300'
-                          }`}
-                        >
-                          <span className="text-lg">{trans.icon}</span>
-                          <span>{trans.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {activeBottomMenu === 'text' && (
-                    <div className="space-y-4">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          id="nekoSubInput"
-                          placeholder="Nhập nội dung chữ..."
-                          className="flex-1 bg-zinc-900 border border-white/[0.1] rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-pink-500"
-                        />
-                        <button
-                          onClick={() => {
-                            const inputEl = document.getElementById('nekoSubInput');
-                            if (inputEl && inputEl.value.trim()) {
-                              const newSub = {
-                                id: `sub_${Date.now()}`,
-                                text: inputEl.value.trim(),
-                                start: currentTimeRef.current,
-                                end: Math.min(totalDuration, currentTimeRef.current + 3.0),
-                                templateId: 'sakura_glow',
-                                x: 0.5,
-                                y: 0.82,
-                                fontSize: 44,
-                                anim: 'bounce'
-                              };
-                              setSubtitles([...subtitles, newSub]);
-                              setActiveSubId(newSub.id);
-                              inputEl.value = '';
-                              renderCanvasFrame(currentTimeRef.current);
-                              playNekoSound('success');
-                              showToast('🐾 Đã thêm chữ! Kéo trên màn hình để chỉnh vị trí.');
-                            }
-                          }}
-                          className="px-4 py-2 rounded-xl bg-pink-500 text-white font-bold text-xs active:scale-95 shadow"
-                        >
-                          Thêm
-                        </button>
-                      </div>
-
-                      {activeSub && (
-                        <div className="p-3 rounded-xl bg-zinc-900/90 border border-pink-500/40 space-y-3">
-                          <div className="text-[11px] font-bold text-pink-300 flex items-center justify-between">
-                            <span>Đang chỉnh sửa: "{activeSub.text}"</span>
-                            <span className="text-[9px] text-zinc-400">Tọa độ: {Math.round((activeSub.x || 0.5)*100)}%, {Math.round((activeSub.y || 0.82)*100)}%</span>
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-zinc-400 font-bold">Hiệu ứng chuyển động:</label>
-                            <div className="grid grid-cols-3 gap-1.5">
-                              {TEXT_ANIM_OPTIONS.map((an) => (
-                                <button
-                                  key={an.id}
-                                  onClick={() => {
-                                    setSubtitles((prev) =>
-                                      prev.map((s) => (s.id === activeSub.id ? { ...s, anim: an.id } : s))
-                                    );
-                                    renderCanvasFrame(currentTimeRef.current);
-                                    playNekoSound('click');
-                                  }}
-                                  className={`py-1 px-1.5 rounded text-[10px] font-bold truncate ${
-                                    (activeSub.anim || 'none') === an.id
-                                      ? 'bg-pink-500 text-white shadow'
-                                      : 'bg-zinc-800 text-zinc-400 hover:text-white'
-                                  }`}
-                                >
-                                  {an.name}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between text-xs text-zinc-300 pt-1">
-                            <span>Cỡ chữ:</span>
-                            <input
-                              type="range"
-                              min={24}
-                              max={80}
-                              value={activeSub.fontSize || 44}
-                              onChange={(e) => {
-                                const fs = parseInt(e.target.value, 10);
-                                setSubtitles((prev) =>
-                                  prev.map((s) => (s.id === activeSub.id ? { ...s, fontSize: fs } : s))
-                                );
-                                renderCanvasFrame(currentTimeRef.current);
-                              }}
-                              className="w-32 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#ff2a7a]"
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between text-xs text-zinc-300">
-                            <span>Độ dày viền (Stroke):</span>
-                            <input
-                              type="range"
-                              min={0}
-                              max={10}
-                              value={activeSub.strokeWidth !== undefined ? activeSub.strokeWidth : 3}
-                              onChange={(e) => {
-                                const sw = parseInt(e.target.value, 10);
-                                setSubtitles((prev) =>
-                                  prev.map((s) => (s.id === activeSub.id ? { ...s, strokeWidth: sw } : s))
-                                );
-                                renderCanvasFrame(currentTimeRef.current);
-                              }}
-                              className="w-32 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#ff2a7a]"
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <div className="text-[11px] font-bold text-zinc-400">Chọn mẫu chữ nghệ thuật:</div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {TEXT_TEMPLATES.map((tmpl) => (
-                            <button
-                              key={tmpl.id}
-                              onClick={() => {
-                                if (activeSubId) {
-                                  setSubtitles((prev) =>
-                                    prev.map((s) => (s.id === activeSubId ? { ...s, templateId: tmpl.id } : s))
-                                  );
-                                  renderCanvasFrame(currentTimeRef.current);
-                                  playNekoSound('click');
-                                  showToast(`Áp dụng mẫu: ${tmpl.name}`);
-                                } else {
-                                  showToast('Chạm vào 1 đoạn chữ trên video hoặc timeline trước');
-                                }
-                              }}
-                              className="p-2.5 rounded-xl border border-white/[0.08] bg-zinc-900 text-left hover:border-pink-400 active:scale-95 transition"
-                            >
-                              <div className="text-xs font-bold truncate text-pink-300">{tmpl.name}</div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 pt-1 border-t border-white/[0.06]">
-                        <div className="text-[11px] font-bold text-zinc-400">Các đoạn chữ trên video:</div>
-                        {subtitles.length === 0 ? (
-                          <div className="text-[10px] text-zinc-500 italic">Chưa có chữ nào.</div>
-                        ) : (
-                          subtitles.map((sub) => (
-                            <div
-                              key={sub.id}
-                              onClick={() => {
-                                setActiveSubId(sub.id);
-                                renderCanvasFrame(currentTimeRef.current);
-                              }}
-                              className={`flex items-center justify-between px-3 py-2 rounded-lg border cursor-pointer ${
-                                activeSubId === sub.id ? 'bg-pink-950/40 border-pink-500/60' : 'bg-zinc-900 border-white/[0.06]'
-                              }`}
-                            >
-                              <span className="text-xs text-pink-300 font-semibold truncate max-w-[180px]">{sub.text}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-mono text-zinc-400">{sub.start.toFixed(1)}s - {sub.end.toFixed(1)}s</span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSubtitles(subtitles.filter((s) => s.id !== sub.id));
-                                    if (activeSubId === sub.id) setActiveSubId(null);
-                                    renderCanvasFrame(currentTimeRef.current);
-                                    showToast('Đã xóa chữ');
-                                  }}
-                                  className="text-rose-400 text-xs font-bold"
-                                >
-                                  Xóa
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {activeBottomMenu === 'audio' && (
-                    <div className="space-y-3">
-                      <label className="w-full py-3 px-4 rounded-xl bg-pink-500/20 border border-pink-500/40 text-pink-300 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer active:scale-95">
-                        <span>🎵 Trích xuất file nhạc MP3/WAV</span>
-                        <input
-                          type="file"
-                          accept="audio/*"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            if (f) {
-                              const url = URL.createObjectURL(f);
-                              const newAudio = {
-                                id: `audio_${Date.now()}`,
-                                name: f.name,
-                                url,
-                                duration: totalDuration
-                              };
-                              setAudioClips([newAudio]);
-                              if (bgmAudioRef.current) {
-                                bgmAudioRef.current.src = url;
-                                bgmAudioRef.current.play().catch(() => {});
-                              }
-                              playNekoSound('success');
-                              showToast(`🐾 Đã nạp nhạc: ${f.name}`);
-                              setShowToolSheet(false);
-                            }
-                          }}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  )}
-
                   {activeBottomMenu === 'edit' && activeClip && (
                     <div className="space-y-3">
                       <div className="space-y-1.5">
@@ -2850,309 +2167,6 @@
                   )}
                 </div>
               )}
-
-              {showCoverModal && (
-                <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between animate-in fade-in duration-200 select-none">
-                  <div className="h-12 px-4 flex items-center justify-between border-b border-white/[0.08] bg-[#0c0c12]">
-                    <button
-                      onClick={() => {
-                        setShowCoverModal(false);
-                        seekTo(coverBackupTimeRef.current, true);
-                      }}
-                      className="text-xs text-zinc-400 hover:text-white"
-                    >
-                      Hủy
-                    </button>
-                    <span className="text-sm font-bold text-white tracking-wide">
-                      Chọn Ảnh Bìa Neko
-                    </span>
-                    <button
-                      onClick={() => {
-                        const canvas = coverCanvasRef.current;
-                        if (canvas) {
-                          const snapshotUrl = canvas.toDataURL('image/jpeg', 0.85);
-                          setCoverImage(snapshotUrl);
-                        }
-                        setShowCoverModal(false);
-                        seekTo(coverScrubTime, true);
-                        playNekoSound('success');
-                        showToast('🐾 Đã lưu ảnh bìa Neko!');
-                      }}
-                      className="px-3.5 py-1 rounded-full bg-[#ff2a7a] text-white font-extrabold text-xs shadow-[0_0_12px_rgba(255,42,122,0.4)]"
-                    >
-                      Lưu
-                    </button>
-                  </div>
-
-                  <div className="flex-1 flex flex-col items-center justify-center p-4 relative min-h-0">
-                    <div className="relative max-h-full max-w-full rounded-xl overflow-hidden border-2 border-pink-500/80 shadow-[0_0_30px_rgba(255,42,122,0.2)]">
-                      <canvas
-                        ref={(node) => {
-                          coverCanvasRef.current = node;
-                          if (node) {
-                            node.width = selectedRatio.w;
-                            node.height = selectedRatio.h;
-                            const ctx = node.getContext('2d');
-                            if (ctx) {
-                              drawFrameToContext(ctx, node.width, node.height, coverScrubTime);
-                              if (coverTitleText) {
-                                ctx.save();
-                                ctx.font = `900 ${Math.round(node.width * 0.052)}px 'Montserrat', sans-serif`;
-                                ctx.textAlign = 'center';
-                                ctx.fillStyle = '#ffb703';
-                                ctx.shadowColor = 'rgba(0,0,0,0.9)';
-                                ctx.shadowBlur = 12;
-                                ctx.fillText(coverTitleText, node.width / 2, node.height * 0.88);
-                                ctx.restore();
-                              }
-                            }
-                          }
-                        }}
-                        className="max-h-[calc(100vh-280px)] max-w-full object-contain"
-                        style={{ aspectRatio: selectedRatio.ratioCss }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-[#0e0e16] border-t border-white/[0.08] space-y-3">
-                    <input
-                      type="text"
-                      value={coverTitleText}
-                      onChange={(e) => setCoverTitleText(e.target.value)}
-                      placeholder="Nhập tiêu đề ảnh bìa..."
-                      className="w-full bg-[#181824] border border-white/[0.1] rounded-lg px-3 py-1.5 text-xs text-white placeholder-zinc-500"
-                    />
-                    <input
-                      type="range"
-                      min={0}
-                      max={totalDuration}
-                      step={0.05}
-                      value={coverScrubTime}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        setCoverScrubTime(val);
-                        seekTo(val, true);
-                      }}
-                      className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#ff2a7a]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* MODAL POPUP CHỌN 2S: CHỈ KÍCH HOẠT NẾU LÀ CLIP MATRIXAUTO */}
-              {showScoreSelectModal && (() => {
-                const targetClip = videoClips.find(c => c.isScoreClip);
-                if (!targetClip) return null;
-                const srcDur = targetClip.sourceDuration || totalDuration;
-                const windowMin = Math.max(0, srcDur - 15);
-                const windowMax = Math.max(windowMin, srcDur - 2);
-
-                return (
-                  <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col justify-between animate-in fade-in duration-200 select-none">
-                    <div className="h-12 px-4 flex items-center justify-between border-b border-white/[0.08] bg-[#0c0c12]">
-                      <button
-                        onClick={() => {
-                          setShowScoreSelectModal(false);
-                          seekTo(currentTimeRef.current, true);
-                        }}
-                        className="text-xs text-zinc-400 hover:text-white"
-                      >
-                        Hủy
-                      </button>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-pink-400 font-bold text-xs">⚡</span>
-                        <span className="text-sm font-bold text-white tracking-wide">
-                          Chọn 2s Điểm Số (15s Cuối)
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setVideoClips((prev) =>
-                            prev.map((c) =>
-                              c.isScoreClip ? { ...c, trimStart: Number(scoreTrimWindowStart.toFixed(2)), duration: 2.0 } : c
-                            )
-                          );
-                          setShowScoreSelectModal(false);
-                          playNekoSound('success');
-                          showToast(`🐾 Đã chọn đoạn 2s: ${scoreTrimWindowStart.toFixed(1)}s - ${(scoreTrimWindowStart + 2).toFixed(1)}s`);
-                          seekTo(0, true);
-                        }}
-                        className="px-3.5 py-1 rounded-full bg-[#ff2a7a] text-white font-extrabold text-xs shadow-[0_0_12px_rgba(255,42,122,0.4)]"
-                      >
-                        Xác nhận
-                      </button>
-                    </div>
-
-                    <div className="flex-1 flex flex-col items-center justify-center p-4 relative min-h-0">
-                      <div className="relative max-h-full max-w-full rounded-xl overflow-hidden border-2 border-pink-500/80 shadow-[0_0_24px_rgba(255,42,122,0.25)]">
-                        <canvas
-                          ref={(node) => {
-                            scoreModalCanvasRef.current = node;
-                            if (node) {
-                              node.width = selectedRatio.w;
-                              node.height = selectedRatio.h;
-                              const ctx = node.getContext('2d');
-                              const vid = hiddenVideoRef.current;
-                              if (ctx && vid) {
-                                const dims = getDrawDimensions(vid, node.width, node.height, fitMode);
-                                ctx.fillStyle = '#050508';
-                                ctx.fillRect(0, 0, node.width, node.height);
-                                ctx.drawImage(vid, dims.x, dims.y, dims.w, dims.h);
-                              }
-                            }
-                          }}
-                          className="max-h-[calc(100vh-300px)] max-w-full object-contain"
-                          style={{ aspectRatio: selectedRatio.ratioCss }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-[#0e0e16] border-t border-white/[0.08] space-y-3">
-                      <div className="flex items-center justify-between text-xs text-zinc-300">
-                        <span>Khoảng 2s được chọn:</span>
-                        <span className="font-mono text-pink-300 font-bold bg-pink-950/40 px-2.5 py-0.5 rounded border border-pink-800/40">
-                          {formatTimeCode(scoreTrimWindowStart)} ➔ {formatTimeCode(scoreTrimWindowStart + 2)}
-                        </span>
-                      </div>
-
-                      <div className="relative pt-1">
-                        <input
-                          type="range"
-                          min={windowMin}
-                          max={windowMax}
-                          step={0.05}
-                          value={scoreTrimWindowStart}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value);
-                            setScoreTrimWindowStart(val);
-
-                            const vid = hiddenVideoRef.current;
-                            if (vid) {
-                              vid.currentTime = val;
-                              const onSeek = () => {
-                                const canvas = scoreModalCanvasRef.current;
-                                if (canvas) {
-                                  const ctx = canvas.getContext('2d');
-                                  if (ctx) {
-                                    const dims = getDrawDimensions(vid, canvas.width, canvas.height, fitMode);
-                                    ctx.fillStyle = '#050508';
-                                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                                    ctx.drawImage(vid, dims.x, dims.y, dims.w, dims.h);
-                                  }
-                                }
-                                vid.removeEventListener('seeked', onSeek);
-                              };
-                              vid.addEventListener('seeked', onSeek);
-                            }
-                          }}
-                          className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-[#ff2a7a]"
-                        />
-                        <div className="flex justify-between text-[10px] font-mono text-zinc-500 mt-1">
-                          <span>Bắt đầu 15s cuối ({formatTimeCode(windowMin)})</span>
-                          <span>Hết video ({formatTimeCode(srcDur)})</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-
-          {showTemplateModal && (
-            <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-              <div className="bg-[#121019] border-t sm:border border-white/[0.12] w-full max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col max-h-[88vh] overflow-hidden shadow-2xl">
-                
-                <div className="p-4 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-[#15131d]">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-md overflow-hidden border border-pink-500/50 shadow-sm bg-zinc-900 shrink-0">
-                      <img
-                        src="wwlogo.jpg"
-                        alt="MatrixAuto WW Logo"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = 'https://placehold.co/40x40/15131d/ff2a7a?text=WW';
-                        }}
-                      />
-                    </div>
-                    <h3 className="font-extrabold text-sm text-zinc-100">Cấu Hình Mẫu MatrixAuto Neko</h3>
-                  </div>
-                  <button
-                    onClick={() => setShowTemplateModal(false)}
-                    className="w-8 h-8 rounded-full bg-zinc-800/80 text-zinc-400 flex items-center justify-center text-xs"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="p-4 overflow-y-auto neko-scroll space-y-4 flex-1">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-zinc-300">Tông màu trận đấu:</label>
-                    <div className="space-y-2">
-                      {NEKO_STYLES.map((st) => (
-                        <div
-                          key={st.id}
-                          onClick={() => setSelectedStyleId(st.id)}
-                          className={`p-3 rounded-xl border text-left cursor-pointer flex items-center justify-between transition ${
-                            selectedStyleId === st.id
-                              ? 'bg-pink-500/20 border-pink-400 text-pink-300 shadow-[0_0_12px_rgba(255,42,122,0.2)]'
-                              : 'bg-zinc-900/60 border-white/[0.06] text-zinc-300'
-                          }`}
-                        >
-                          <div>
-                            <div className="text-xs font-bold">{st.name}</div>
-                            <div className="text-[10px] text-zinc-400 mt-0.5">{st.desc}</div>
-                          </div>
-                          {selectedStyleId === st.id && (
-                            <span className="text-pink-400 font-bold text-sm shrink-0">✓</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <label className="flex items-center justify-between bg-zinc-900/70 p-3.5 rounded-xl border border-white/[0.06] cursor-pointer">
-                    <span className="text-xs text-zinc-200 font-medium">Tự động trích 2s điểm số đưa lên đầu clip</span>
-                    <input
-                      type="checkbox"
-                      checked={autoScoreLoop}
-                      onChange={(e) => setAutoScoreLoop(e.target.checked)}
-                      className="w-5 h-5 accent-pink-500 rounded cursor-pointer shrink-0"
-                    />
-                  </label>
-                </div>
-
-                <div className="p-4 pt-3 pb-8 sm:pb-4 border-t border-zinc-800/80 bg-[#121019] shrink-0 grid grid-cols-2 gap-3 z-10">
-                  <button
-                    type="button"
-                    onClick={() => applyMatrixTemplate()}
-                    className="h-12 rounded-xl bg-zinc-800/90 text-xs font-bold text-zinc-100 border border-white/[0.1] hover:bg-zinc-700 flex items-center justify-center transition shadow-md gap-2"
-                  >
-                    <img
-                      src="wwlogo.jpg"
-                      alt="WW Icon"
-                      className="w-4 h-4 rounded-full object-cover shrink-0"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                    <span>Dùng Video Mẫu Neko</span>
-                  </button>
-
-                  <label className="h-12 rounded-xl bg-gradient-to-r from-pink-500 via-rose-500 to-amber-400 text-xs font-black text-black text-center shadow-[0_0_16px_rgba(255,42,122,0.4)] cursor-pointer flex items-center justify-center gap-2">
-                    <CatPawSvg className="w-4 h-4 fill-black" />
-                    <span>Chọn Video Của Bạn</span>
-                    <input
-                      type="file"
-                      accept="video/*"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) applyMatrixTemplate(f);
-                      }}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
             </div>
           )}
 
