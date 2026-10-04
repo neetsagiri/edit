@@ -176,7 +176,7 @@
       { id: 'none', name: 'Không chuyển tiếp', icon: '⛔', desc: 'Cắt trực tiếp' },
       { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫️', desc: 'Hòa tan mềm mại' },
       { id: 'zoom', name: 'Phóng To Nhanh', icon: '🔍', desc: 'Đột phá khung hình' },
-      { id: 'slide', name: 'Lướt Cạnh Trái', icon: '↔️️', desc: 'Trượt ngang mượt mà' },
+      { id: 'slide', name: 'Lướt Cạnh Trái', icon: '↔', desc: 'Trượt ngang mượt mà' },
       { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆️', desc: 'Trượt dọc điện ảnh' },
       { id: 'flash', name: 'Chớp Sáng Trắng', icon: '⚡', desc: 'Chớp sáng phong cách anime' },
       { id: 'black_fade', name: 'Chớp Đen Noir', icon: '🌑', desc: 'Hạ đen kịch tính' },
@@ -199,7 +199,7 @@
       { id: 'zoom_out', name: 'Thu Nhỏ Dần Ra', icon: '🔬' },
       { id: 'slide_out_left', name: 'Trượt Về Trái', icon: '👈' },
       { id: 'slide_out_right', name: 'Trượt Về Phải', icon: '👉' },
-      { id: 'slide_out_down', name: 'Hạ Xuống Dưới', icon: '⬇️️' },
+      { id: 'slide_out_down', name: 'Hạ Xuống Dưới', icon: '⬇' },
       { id: 'black_out', name: 'Tắt Dần Đen', icon: '🌑' }
     ];
 
@@ -274,7 +274,6 @@
       });
     };
 
-    // TRÍCH XUẤT THUMBNAIL PHỦ KÍN 100% TIMELINE, TỐI ƯU TỐC ĐỘ SEEK
     const extractThumbnailsFromVideo = (videoUrl, startTime, duration, targetCount) => {
       return new Promise((resolve) => {
         const v = document.createElement('video');
@@ -415,20 +414,8 @@
       const [fitMode, setFitMode] = useState('cover');
       const [showRatioMenu, setShowRatioMenu] = useState(false);
 
-      const [audioClips, setAudioClips] = useState([
-        {
-          id: 'audio_default_1',
-          name: 'Đã trích xuất20261004-01',
-          url: SAMPLE_WW_VIDEO,
-          sourceDuration: 59.1,
-          start: 0,
-          duration: 59.1,
-          trimStart: 0,
-          volume: 1.0,
-          fadeIn: 0,
-          fadeOut: 0
-        }
-      ]);
+      // Track âm thanh khởi tạo rỗng - Không tự động trích xuất âm thanh từ video
+      const [audioClips, setAudioClips] = useState([]);
       const [activeAudioId, setActiveAudioId] = useState(null);
 
       const [showVolumeDrawer, setShowVolumeDrawer] = useState(false);
@@ -985,22 +972,9 @@
           thumbnails: []
         };
 
-        const newAudio = {
-          id: `audio_${Date.now()}`,
-          name: `Đã trích xuất_${newName.substring(0, 12)}`,
-          url: newUrl,
-          sourceDuration: newDur,
-          start: 0,
-          duration: newDur,
-          trimStart: 0,
-          volume: 1.0,
-          fadeIn: 0,
-          fadeOut: 0
-        };
-
         setProjectTitle(newName.replace(/\.[^/.]+$/, ""));
         setVideoClips([newClip]);
-        setAudioClips([newAudio]);
+        setAudioClips([]); // Không tự động trích xuất âm thanh
         setActiveClipId(newClip.id);
         setActiveAudioId(null);
         activeClipIdRef.current = newClip.id;
@@ -1028,7 +1002,7 @@
 
         const bgm = bgmAudioRef.current;
         if (bgm) {
-          bgm.src = newUrl;
+          bgm.src = '';
           bgm.load();
         }
 
@@ -1640,22 +1614,9 @@
         const finalClips = autoScoreLoop ? [scoreClip, combatClip] : [{ ...combatClip, duration: trueDuration }];
         const finalCalculatedDuration = finalClips.reduce((acc, c) => acc + (c.duration / (c.speed || 1.0)), 0);
 
-        const autoAudio = {
-          id: `audio_${Date.now()}`,
-          name: `Đã trích xuất_${name.substring(0, 12)}`,
-          url,
-          sourceDuration: trueDuration,
-          start: 0,
-          duration: finalCalculatedDuration,
-          trimStart: 0,
-          volume: 1.0,
-          fadeIn: 0,
-          fadeOut: 0
-        };
-
         setProjectTitle(name.replace(/\.[^/.]+$/, ""));
         setVideoClips(finalClips);
-        setAudioClips([autoAudio]);
+        setAudioClips([]); // Không tạo track âm thanh trích xuất
         setActiveClipId(finalClips[0].id);
         setActiveAudioId(null);
         activeClipIdRef.current = finalClips[0].id;
@@ -1677,7 +1638,7 @@
 
         const bgm = bgmAudioRef.current;
         if (bgm) {
-          bgm.src = url;
+          bgm.src = '';
           bgm.load();
         }
 
@@ -2198,7 +2159,7 @@
                 </div>
               )}
 
-              {/* TIMELINE VIEWPORT VỚI ĐỒNG BỘ TRỤC VỊ TRÍ ÂM THANH VÀ THUMBNAIL TRẢI ĐỀU 100% */}
+              {/* TIMELINE VIEWPORT */}
               <div className="h-44 bg-[#101016] border-t border-b border-white/[0.08] flex relative shrink-0">
                 <div className="w-24 bg-[#0d0d13] border-r border-white/[0.08] flex flex-col justify-between py-2 px-1 z-20 shrink-0 select-none">
                   <div className="text-[10px] font-mono text-zinc-400 font-medium px-1">
@@ -2343,7 +2304,6 @@
                                   </div>
                                 )}
 
-                                {/* DẢI FRAME THUMBNAIL PHỦ KÍN TOÀN BỘ KHÔNG BỊ TRỐNG ĐUÔI */}
                                 <div className="absolute inset-0 flex items-center overflow-hidden pointer-events-none rounded-sm bg-black">
                                   {clip.thumbnails && clip.thumbnails.length > 0 ? (
                                     clip.thumbnails.map((thumbUri, fIdx) => (
@@ -2451,7 +2411,7 @@
                         </label>
                       </div>
 
-                      {/* TRACK 2: ĐỒNG BỘ TUYỆT ĐỐI VỊ TRÍ ÂM THANH */}
+                      {/* TRACK 2: CHỈ HIỂN THỊ KHI NGƯỜI DÙNG TỰ THÊM NHẠC */}
                       <div 
                         className="h-9 relative my-0.5"
                         style={{ width: `${totalDuration * timelineZoom}px` }}
