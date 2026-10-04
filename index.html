@@ -177,7 +177,7 @@
       { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫️', desc: 'Hòa tan mềm mại' },
       { id: 'zoom', name: 'Phóng To Nhanh', icon: '🔍', desc: 'Đột phá khung hình' },
       { id: 'slide', name: 'Lướt Cạnh Trái', icon: '↔️', desc: 'Trượt ngang mượt mà' },
-      { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆️', desc: 'Trượt dọc điện ảnh' },
+      { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆️️', desc: 'Trượt dọc điện ảnh' },
       { id: 'flash', name: 'Chớp Sáng Trắng', icon: '⚡', desc: 'Chớp sáng phong cách anime' },
       { id: 'black_fade', name: 'Chớp Đen Noir', icon: '🌑', desc: 'Hạ đen kịch tính' },
       { id: 'glitch', name: 'Neko Glitch Matrix', icon: '👾', desc: 'Rung giật cyberpunk' }
@@ -274,8 +274,8 @@
       });
     };
 
-    // PHƯƠNG ÁN A (NÂNG CẤP): CANVAS 160x90, CHẤT LƯỢNG CAO, SỐ FRAME TỰ ĐỘNG THEO THỜI LƯỢNG
-    const extractThumbnailsFromVideo = (videoUrl, startTime, duration, targetCount = null) => {
+    // TRÍCH XUẤT THUMBNAIL CHUẨN CAPCUT: TỶ LỆ CHÍNH XÁC VỚI Ô TIMELINE, KHÔNG CO GIÃN MỜ
+    const extractThumbnailsFromVideo = (videoUrl, startTime, duration, targetCount = 10) => {
       return new Promise((resolve) => {
         const v = document.createElement('video');
         v.preload = 'auto';
@@ -286,18 +286,17 @@
         }
         v.src = videoUrl;
 
-        // Kích thước chuẩn HD thumbnail (160x90) hiển thị sắc nét trên mọi mật độ pixel
+        // Render ở tỷ lệ ô timeline (100x120) siêu nét Retina
         const canvas = document.createElement('canvas');
-        canvas.width = 160;
-        canvas.height = 90;
+        canvas.width = 100;
+        canvas.height = 120;
         const ctx = canvas.getContext('2d', { alpha: false });
         if (ctx) ctx.imageSmoothingQuality = 'high';
 
         const thumbs = [];
-        // Tính số lượng frame theo độ dài clip (tránh bị kéo dãn nhòe hình)
-        const count = targetCount || Math.min(22, Math.max(6, Math.round(duration / 1.8)));
-        const step = Math.max(0.06, duration / count);
-        let curTime = startTime;
+        const count = Math.max(2, targetCount);
+        const step = duration / count;
+        let index = 0;
 
         const cleanup = () => {
           v.onseeked = null;
@@ -306,26 +305,35 @@
           v.load();
         };
 
+        const seekNext = () => {
+          if (index >= count) {
+            cleanup();
+            resolve(thumbs);
+            return;
+          }
+          const targetSec = startTime + (index + 0.5) * step;
+          v.currentTime = Math.min(v.duration || targetSec, targetSec);
+        };
+
         v.onloadedmetadata = () => {
-          v.currentTime = Math.min(v.duration || curTime, curTime);
+          seekNext();
         };
 
         v.onseeked = () => {
-          if (ctx) {
-            ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+          if (ctx && v.videoWidth && v.videoHeight) {
+            // Center crop khung hình vào kích thước ô để ảnh đúng chất lượng cao nhất
+            const scale = Math.max(canvas.width / v.videoWidth, canvas.height / v.videoHeight);
+            const w = v.videoWidth * scale;
+            const h = v.videoHeight * scale;
+            const x = (canvas.width - w) / 2;
+            const y = (canvas.height - h) / 2;
+            ctx.drawImage(v, x, y, w, h);
             try {
-              // Nén JPEG 0.88 để giữ độ tương phản và chi tiết cao
-              thumbs.push(canvas.toDataURL('image/jpeg', 0.88));
+              thumbs.push(canvas.toDataURL('image/jpeg', 0.92));
             } catch (e) {}
           }
-
-          curTime += step;
-          if (thumbs.length < count && curTime <= startTime + duration + 0.05) {
-            v.currentTime = Math.min(v.duration || curTime, curTime);
-          } else {
-            cleanup();
-            resolve(thumbs);
-          }
+          index++;
+          seekNext();
         };
 
         v.onerror = () => {
@@ -336,7 +344,7 @@
         setTimeout(() => {
           cleanup();
           resolve(thumbs);
-        }, 5000);
+        }, 6000);
       });
     };
 
@@ -459,14 +467,18 @@
       };
 
       const refreshClipThumbnails = useCallback((clipId, url, start, dur) => {
-        extractThumbnailsFromVideo(url, start, dur).then((thumbs) => {
+        const effDur = dur;
+        const clipPixelWidth = effDur * timelineZoom;
+        const requiredCount = Math.max(1, Math.ceil(clipPixelWidth / 52)); // 52px mỗi ô thumb chuẩn CapCut
+
+        extractThumbnailsFromVideo(url, start, dur, requiredCount).then((thumbs) => {
           if (thumbs.length > 0) {
             setVideoClips((prev) =>
               prev.map((c) => (c.id === clipId ? { ...c, thumbnails: thumbs } : c))
             );
           }
         });
-      }, []);
+      }, [timelineZoom]);
 
       // Tự nạp thumbnail nét cao cho clip mặc định
       useEffect(() => {
@@ -924,7 +936,6 @@
         if (timelineScrollRef.current) timelineScrollRef.current.scrollLeft = 0;
         showToast(`Đã mở dự án: ${newDur.toFixed(1)}s`);
 
-        // Tự trích xuất thumbnails sắc nét cho clip vừa tải lên
         refreshClipThumbnails(newClip.id, newUrl, 0, newDur);
       };
 
@@ -1023,7 +1034,7 @@
         };
       }, [currentPage, videoClips, totalDuration, timelineZoom, renderCanvasFrame, seekTo, isMuted]);
 
-      // TÁCH CLIP TẠI PLAYHEAD VÀ CẬP NHẬT THUMBNAIL CHO 2 NỬA
+      // TÁCH CLIP TẠI PLAYHEAD
       const handleSplitClipAtPlayhead = () => {
         const t = currentTimeRef.current;
         const info = getCurrentClipInfo(t);
@@ -1066,9 +1077,8 @@
         activeClipIdRef.current = clip1.id;
 
         renderCanvasFrame(t);
-        showToast('🐾 Đã tách clip! Đang cập nhật dải frame...');
+        showToast('🐾 Đã tách clip!');
 
-        // Làm mới dải thumbnail riêng cho 2 đoạn clip sau khi tách
         refreshClipThumbnails(clip1.id, clip1.url, clip1.trimStart, clip1.duration);
         refreshClipThumbnails(clip2.id, clip2.url, clip2.trimStart, clip2.duration);
       };
@@ -1303,7 +1313,7 @@
         if (isTrimmingRef.current) {
           isTrimmingRef.current = false;
           try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
-          showToast('🐾 Đã tinh chỉnh độ dài clip');
+          showToast('🐾 Đã cập nhật dải frame');
           seekTo(currentTimeRef.current, false);
 
           const trimmedClip = videoClips.find(c => c.id === trimDataRef.current.clipId);
@@ -1960,7 +1970,7 @@
                 </div>
               )}
 
-              {/* TIMELINE VIEWPORT (GAPLESS CẮT CHUẨN XÁC KÈM REAL HD THUMBNAILS) */}
+              {/* TIMELINE VIEWPORT (CHUẨN CAPCUT: TỪNG Ô THUMBNAIL RÕ NÉT CỐ ĐỊNH, KHÔNG BỊ CO GIÃN MỜ ẢO) */}
               <div className="h-44 bg-[#101016] border-t border-b border-white/[0.08] flex relative shrink-0">
                 <div className="w-24 bg-[#0d0d13] border-r border-white/[0.08] flex flex-col justify-between py-2 px-1 z-20 shrink-0 select-none">
                   <div className="text-[10px] font-mono text-zinc-400 font-medium px-1">
@@ -2101,28 +2111,32 @@
                                   </div>
                                 )}
 
-                                {/* HIỂN THỊ DẢI THUMBNAIL HD CẢI TIẾN: SẮC NÉT & KHÔNG BỊ MỜ ẢO */}
-                                <div className="absolute inset-0 flex items-center overflow-hidden opacity-90 pointer-events-none">
+                                {/* DẢI FRAME THUMBNAIL CHUẨN CAPCUT: HIỂN THỊ CỐ ĐỊNH TỪNG Ô, RÕ NÉT 100% */}
+                                <div className="absolute inset-0 flex items-center overflow-hidden pointer-events-none rounded-sm">
                                   {clip.thumbnails && clip.thumbnails.length > 0 ? (
                                     clip.thumbnails.map((thumbUri, fIdx) => (
                                       <div
                                         key={fIdx}
-                                        className="h-full flex-1 border-r border-black/50 bg-cover bg-center"
-                                        style={{ 
-                                          backgroundImage: `url('${thumbUri}')`,
-                                          imageRendering: '-webkit-optimize-contrast'
-                                        }}
-                                      />
+                                        style={{ width: '52px' }}
+                                        className="h-full shrink-0 border-r border-black/40 overflow-hidden bg-black"
+                                      >
+                                        <img
+                                          src={thumbUri}
+                                          alt="Frame"
+                                          className="w-full h-full object-cover block"
+                                          style={{ imageRendering: '-webkit-optimize-contrast' }}
+                                        />
+                                      </div>
                                     ))
                                   ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-zinc-900/80 text-[8px] text-pink-400 font-mono animate-pulse">
-                                      Đang tạo frame nét...
+                                    <div className="w-full h-full flex items-center justify-center bg-zinc-900 text-[8px] text-pink-400 font-mono animate-pulse">
+                                      Đang tạo frame...
                                     </div>
                                   )}
                                 </div>
 
-                                <div className="flex flex-col min-w-0 z-10 pointer-events-none pl-4">
-                                  <span className="text-[10px] font-bold text-white drop-shadow truncate">
+                                <div className="flex flex-col min-w-0 z-10 pointer-events-none pl-3">
+                                  <span className="text-[10px] font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] truncate">
                                     {clip.name}
                                   </span>
                                   {clip.isScoreClip && (
@@ -3039,7 +3053,7 @@
                       onClick={() => {
                         const canvas = coverCanvasRef.current;
                         if (canvas) {
-                          const snapshotUrl = canvas.toDataURL('image/jpeg', 0.88);
+                          const snapshotUrl = canvas.toDataURL('image/jpeg', 0.92);
                           setCoverImage(snapshotUrl);
                         }
                         setShowCoverModal(false);
