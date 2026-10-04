@@ -174,7 +174,7 @@
 
     const TRANSITIONS = [
       { id: 'none', name: 'Không chuyển tiếp', icon: '⛔', desc: 'Cắt trực tiếp' },
-      { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫️️', desc: 'Hòa tan mềm mại' },
+      { id: 'fade', name: 'Fade Mờ Dần', icon: '🌫️', desc: 'Hòa tan mềm mại' },
       { id: 'zoom', name: 'Phóng To Nhanh', icon: '🔍', desc: 'Đột phá khung hình' },
       { id: 'slide', name: 'Lướt Cạnh Trái', icon: '↔️', desc: 'Trượt ngang mượt mà' },
       { id: 'slide_up', name: 'Đẩy Lên Trên', icon: '⬆️', desc: 'Trượt dọc điện ảnh' },
@@ -222,7 +222,7 @@
       { id: 'none', name: 'Gốc (Raw)', tag: 'Original', css: 'none' },
       { id: 'crisp', name: 'Sakura Crisp', tag: 'Neko Hot', css: 'contrast(1.18) saturate(1.15) brightness(1.02)' },
       { id: 'high-contrast', name: 'Tương Phản Cao', tag: 'Neko Punch', css: 'contrast(1.4) saturate(1.25) brightness(1.05)' },
-      { id: 'cyber', name: 'Neko Cyber Matrix', tag: 'Matrix Neon', css: 'contrast(1.25) saturate(1.3) hue-rotate(300deg) brightness(0.95)' },
+      { id: 'cyber', name: 'Neko Cyber', tag: 'Matrix Neon', css: 'contrast(1.25) saturate(1.3) hue-rotate(300deg) brightness(0.95)' },
       { id: 'vibrant', name: 'Vibrant Neko', tag: 'VFX Burst', css: 'contrast(1.15) saturate(1.5) brightness(1.04)' },
       { id: 'pastel', name: 'Neko Pastel Dream', tag: 'Soft Mơ Màng', css: 'contrast(0.95) saturate(1.2) brightness(1.08) sepia(0.2)' },
       { id: 'monochrome', name: 'Hắc Bạch Neko', tag: 'Noir Cổ Điển', css: 'grayscale(1) contrast(1.3) brightness(1.02)' },
@@ -274,7 +274,7 @@
       });
     };
 
-    // TRÍCH XUẤT THUMBNAIL SẮC NÉT (100x120 CENTER-CROP CHUẨN Ô TIMELINE)
+    // TRÍCH XUẤT THUMBNAIL SẮC NÉT: TỶ LỆ CHÍNH XÁC VỚI Ô TIMELINE, KHÔNG CO GIÃN MỜ
     const extractThumbnailsFromVideo = (videoUrl, startTime, duration, targetCount = 10) => {
       return new Promise((resolve) => {
         const v = document.createElement('video');
@@ -346,7 +346,7 @@
       });
     };
 
-    // VẼ SÓNG ÂM AUDIO WAVEFORM CHUẨN CAPCUT TRÊN CANVAS
+    // VẼ SÓNG ÂM AUDIO WAVEFORM CHUẨN TRÊN CANVAS
     const AudioWaveformCanvas = ({ width, height = 36, isSelected }) => {
       const canvasRef = useRef(null);
 
@@ -423,7 +423,7 @@
         {
           id: 'audio_default_1',
           name: 'Đã trích xuất20261004-01',
-          url: SAMPLE_WW_VIDEO,
+          url: '',
           sourceDuration: 59.1,
           start: 0,
           duration: 59.1,
@@ -470,10 +470,6 @@
       // TRIM TRACK ÂM THANH
       const isAudioTrimmingRef = useRef(false);
       const audioTrimDataRef = useRef({ handle: null, audioId: null, startX: 0, initStart: 0, initDur: 0, initTrimStart: 0, sourceDur: 59.1 });
-
-      // KÉO DI CHUYỂN TRACK ÂM THANH
-      const isAudioMovingRef = useRef(false);
-      const audioMoveDataRef = useRef({ audioId: null, startX: 0, initStart: 0, duration: 0 });
 
       const isSubTrimmingRef = useRef(false);
       const subTrimDataRef = useRef({ handle: null, subId: null, startX: 0, initStart: 0, initEnd: 0 });
@@ -847,7 +843,6 @@
         [drawFrameToContext]
       );
 
-      // ĐỒNG BỘ PLAYHEAD VÀ TRACK ÂM THANH
       const seekTo = useCallback(
         (targetTime, forceRender = false) => {
           const clamped = Math.max(0, Math.min(totalDuration, targetTime));
@@ -893,29 +888,8 @@
           } else {
             renderCanvasFrame(clamped);
           }
-
-          // Đồng bộ thẻ Audio theo vị trí Playhead
-          const bgm = bgmAudioRef.current;
-          if (bgm && audioClips.length > 0) {
-            const curAud = audioClips.find(
-              (a) => clamped >= a.start && clamped < a.start + a.duration
-            );
-            if (curAud && curAud.url) {
-              if (bgm.src !== curAud.url) {
-                bgm.src = curAud.url;
-                bgm.load();
-              }
-              const targetAudTime = (clamped - curAud.start) + (curAud.trimStart || 0);
-              if (Math.abs(bgm.currentTime - targetAudTime) > 0.08 || forceRender) {
-                bgm.currentTime = targetAudTime;
-              }
-              bgm.volume = isMuted ? 0 : (curAud.volume ?? 1.0);
-            } else {
-              bgm.pause();
-            }
-          }
         },
-        [totalDuration, getCurrentClipInfo, renderCanvasFrame, isMuted, videoClips, audioClips]
+        [totalDuration, getCurrentClipInfo, renderCanvasFrame, isMuted, videoClips]
       );
 
       const playVideo = () => {
@@ -940,19 +914,8 @@
           curVid.play().catch(() => {});
         }
 
-        if (bgm && audioClips.length > 0) {
-          const curAud = audioClips.find(
-            (a) => currentTimeRef.current >= a.start && currentTimeRef.current < a.start + a.duration
-          );
-          if (curAud && curAud.url) {
-            if (bgm.src !== curAud.url) {
-              bgm.src = curAud.url;
-              bgm.load();
-            }
-            bgm.currentTime = (currentTimeRef.current - curAud.start) + (curAud.trimStart || 0);
-            bgm.volume = isMuted ? 0 : (curAud.volume ?? 1.0);
-            bgm.play().catch(() => {});
-          }
+        if (bgm && audioClips.length > 0 && audioClips[0].url) {
+          bgm.play().catch(() => {});
         }
 
         isPlayingRef.current = true;
@@ -1010,7 +973,7 @@
           name: `Đã trích xuất_${newName.substring(0, 12)}`,
           url: newUrl,
           sourceDuration: newDur,
-          start: Number((currentTimeRef.current || 0).toFixed(2)),
+          start: 0,
           duration: newDur,
           trimStart: 0,
           volume: 1.0,
@@ -1133,22 +1096,6 @@
                   lastUiUpdateRef.current = now;
                 }
                 renderCanvasFrame(exactTimelineTime);
-
-                // Đồng bộ audio khi phát
-                const bgm = bgmAudioRef.current;
-                if (bgm && audioClips.length > 0) {
-                  const curAud = audioClips.find(
-                    (a) => exactTimelineTime >= a.start && exactTimelineTime < a.start + a.duration
-                  );
-                  if (curAud && curAud.url) {
-                    if (bgm.paused) {
-                      bgm.currentTime = (exactTimelineTime - curAud.start) + (curAud.trimStart || 0);
-                      bgm.play().catch(() => {});
-                    }
-                  } else {
-                    if (!bgm.paused) bgm.pause();
-                  }
-                }
               }
             } else {
               pauseVideo();
@@ -1161,7 +1108,7 @@
         return () => {
           if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         };
-      }, [currentPage, videoClips, totalDuration, timelineZoom, renderCanvasFrame, seekTo, isMuted, audioClips]);
+      }, [currentPage, videoClips, totalDuration, timelineZoom, renderCanvasFrame, seekTo, isMuted]);
 
       // TÁCH CLIP TẠI PLAYHEAD
       const handleSplitClipAtPlayhead = () => {
@@ -1242,6 +1189,132 @@
         setAudioClips(newAudios);
         setActiveAudioId(a1.id);
         showToast('🐾 Đã tách đoạn âm thanh!');
+      };
+
+      const handlePreviewPointerDown = (e) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.clientX;
+        const clientY = e.clientY;
+
+        const canvasX = ((clientX - rect.left) / rect.width) * canvas.width;
+        const canvasY = ((clientY - rect.top) / rect.height) * canvas.height;
+
+        let hitSubId = null;
+        for (const [subId, box] of textBoxesRef.current.entries()) {
+          if (
+            canvasX >= box.x &&
+            canvasX <= box.x + box.w &&
+            canvasY >= box.y &&
+            canvasY <= box.y + box.h
+          ) {
+            hitSubId = subId;
+            break;
+          }
+        }
+
+        if (hitSubId) {
+          isDraggingTextRef.current = true;
+          setActiveSubId(hitSubId);
+          const found = subtitles.find((s) => s.id === hitSubId);
+          textDragStartRef.current = {
+            x: clientX,
+            y: clientY,
+            initialSubX: found?.x !== undefined ? found.x : 0.5,
+            initialSubY: found?.y !== undefined ? found.y : 0.82
+          };
+          renderCanvasFrame(currentTimeRef.current);
+          return;
+        }
+
+        activePointersRef.current.set(e.pointerId, { x: clientX, y: clientY });
+        const pointers = Array.from(activePointersRef.current.values());
+
+        if (pointers.length === 1) {
+          const now = Date.now();
+          if (now - lastTapTimeRef.current < 280) {
+            previewZoomRef.current = 1.0;
+            previewPanRef.current = { x: 0, y: 0 };
+            renderCanvasFrame(currentTimeRef.current);
+            showToast('🐾 Đã đặt lại tỷ lệ 100%');
+            lastTapTimeRef.current = 0;
+            return;
+          }
+          lastTapTimeRef.current = now;
+          panStartCenterRef.current = { x: clientX, y: clientY };
+          panStartPanRef.current = { ...previewPanRef.current };
+        } else if (pointers.length === 2) {
+          const dist = Math.hypot(pointers[0].x - pointers[1].x, pointers[0].y - pointers[1].y);
+          pinchStartDistRef.current = Math.max(10, dist);
+          pinchStartZoomRef.current = previewZoomRef.current;
+          panStartCenterRef.current = {
+            x: (pointers[0].x + pointers[1].x) / 2,
+            y: (pointers[0].y + pointers[1].y) / 2
+          };
+          panStartPanRef.current = { ...previewPanRef.current };
+        }
+      };
+
+      const handlePreviewPointerMove = (e) => {
+        if (isDraggingTextRef.current && activeSubId) {
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+          const rect = canvas.getBoundingClientRect();
+          const dx = (e.clientX - textDragStartRef.current.x) / rect.width;
+          const dy = (e.clientY - textDragStartRef.current.y) / rect.height;
+
+          const newX = Math.max(0.08, Math.min(0.92, textDragStartRef.current.initialSubX + dx));
+          const newY = Math.max(0.08, Math.min(0.92, textDragStartRef.current.initialSubY + dy));
+
+          setSubtitles((prev) =>
+            prev.map((s) => (s.id === activeSubId ? { ...s, x: newX, y: newY } : s))
+          );
+          renderCanvasFrame(currentTimeRef.current);
+          return;
+        }
+
+        if (!activePointersRef.current.has(e.pointerId)) return;
+        activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const pointers = Array.from(activePointersRef.current.values());
+
+        if (pointers.length === 1) {
+          const dx = e.clientX - panStartCenterRef.current.x;
+          const dy = e.clientY - panStartCenterRef.current.y;
+          previewPanRef.current = {
+            x: panStartPanRef.current.x + dx,
+            y: panStartPanRef.current.y + dy
+          };
+          renderCanvasFrame(currentTimeRef.current);
+        } else if (pointers.length === 2) {
+          const dist = Math.hypot(pointers[0].x - pointers[1].x, pointers[0].y - pointers[1].y);
+          const ratio = dist / pinchStartDistRef.current;
+          const newZoom = Math.max(0.4, Math.min(4.5, pinchStartZoomRef.current * ratio));
+          previewZoomRef.current = newZoom;
+
+          const midX = (pointers[0].x + pointers[1].x) / 2;
+          const midY = (pointers[0].y + pointers[1].y) / 2;
+          const dx = midX - panStartCenterRef.current.x;
+          const dy = midY - panStartCenterRef.current.y;
+          previewPanRef.current = {
+            x: panStartPanRef.current.x + dx,
+            y: panStartPanRef.current.y + dy
+          };
+          renderCanvasFrame(currentTimeRef.current);
+        }
+      };
+
+      const handlePreviewPointerUp = (e) => {
+        if (isDraggingTextRef.current) {
+          isDraggingTextRef.current = false;
+          return;
+        }
+        activePointersRef.current.delete(e.pointerId);
+        const pointers = Array.from(activePointersRef.current.values());
+        if (pointers.length === 1) {
+          panStartCenterRef.current = { x: pointers[0].x, y: pointers[0].y };
+          panStartPanRef.current = { ...previewPanRef.current };
+        }
       };
 
       const handleTimelinePointerDown = (e) => {
@@ -1415,55 +1488,296 @@
           isAudioTrimmingRef.current = false;
           try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
           showToast('🐾 Đã tinh chỉnh độ dài âm thanh');
-          seekTo(currentTimeRef.current, false);
         }
       };
 
-      // XỬ LÝ NHẤN GIỮ KÉO DI CHUYỂN TRACK ÂM THANH
-      const handleAudioMovePointerDown = (e, aud) => {
+      const handleSubTrimPointerDown = (e, handleType, sub) => {
         e.stopPropagation();
+        e.preventDefault();
         pauseVideo();
-        setActiveAudioId(aud.id);
-        setActiveClipId(null);
-        setActiveSubId(null);
         playNekoSound('click');
 
-        isAudioMovingRef.current = true;
-        audioMoveDataRef.current = {
-          audioId: aud.id,
+        isSubTrimmingRef.current = true;
+        subTrimDataRef.current = {
+          handle: handleType,
+          subId: sub.id,
           startX: e.clientX,
-          initStart: aud.start,
-          duration: aud.duration
+          initStart: sub.start,
+          initEnd: sub.end
         };
 
         try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
       };
 
-      const handleAudioMovePointerMove = (e) => {
-        if (!isAudioMovingRef.current) return;
-        const data = audioMoveDataRef.current;
+      const handleSubTrimPointerMove = (e) => {
+        if (!isSubTrimmingRef.current) return;
+        const data = subTrimDataRef.current;
         const deltaX = e.clientX - data.startX;
         const deltaSec = deltaX / timelineZoom;
 
-        let newStart = Math.max(0, data.initStart + deltaSec);
-        if (newStart + data.duration > totalDuration + 10) {
-          newStart = totalDuration + 10 - data.duration;
-        }
-
-        setAudioClips((prev) =>
-          prev.map((a) =>
-            a.id === data.audioId ? { ...a, start: Number(newStart.toFixed(2)) } : a
-          )
+        setSubtitles((prev) =>
+          prev.map((s) => {
+            if (s.id !== data.subId) return s;
+            if (data.handle === 'right') {
+              const newEnd = Math.max(s.start + 0.3, Math.min(totalDuration, data.initEnd + deltaSec));
+              return { ...s, end: Number(newEnd.toFixed(2)) };
+            } else if (data.handle === 'left') {
+              const newStart = Math.max(0, Math.min(s.end - 0.3, data.initStart + deltaSec));
+              return { ...s, start: Number(newStart.toFixed(2)) };
+            } else if (data.handle === 'move') {
+              const dur = data.initEnd - data.initStart;
+              let nStart = data.initStart + deltaSec;
+              if (nStart < 0) nStart = 0;
+              if (nStart + dur > totalDuration) nStart = totalDuration - dur;
+              return { ...s, start: Number(nStart.toFixed(2)), end: Number((nStart + dur).toFixed(2)) };
+            }
+            return s;
+          })
         );
+        renderCanvasFrame(currentTimeRef.current);
       };
 
-      const handleAudioMovePointerUp = (e) => {
-        if (isAudioMovingRef.current) {
-          isAudioMovingRef.current = false;
+      const handleSubTrimPointerUp = (e) => {
+        if (isSubTrimmingRef.current) {
+          isSubTrimmingRef.current = false;
           try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (_) {}
-          seekTo(currentTimeRef.current, false);
-          showToast('🐾 Đã khớp vị trí thanh âm thanh!');
+          showToast('🐾 Đã cập nhật độ dài chữ');
         }
+      };
+
+      const applyMatrixTemplate = async (customVideoFile = null) => {
+        const url = customVideoFile ? URL.createObjectURL(customVideoFile) : SAMPLE_WW_VIDEO;
+        const name = customVideoFile ? customVideoFile.name : 'Neko_Combat_Sample.mp4';
+        showToast('🐾 NekoAuto đang dựng kịch bản tối ưu...');
+
+        const trueDuration = await getExactVideoDuration(url);
+        const chosenStyle = NEKO_STYLES.find((s) => s.id === selectedStyleId) || NEKO_STYLES[0];
+
+        const scoreDuration = Math.min(2.0, Math.max(0.5, trueDuration * 0.15));
+        const combatDuration = Math.max(1.0, trueDuration - scoreDuration);
+
+        const scoreClip = {
+          id: `score_${Date.now()}`,
+          name: '01. Điểm Neko (Hook 2s)',
+          url,
+          sourceDuration: trueDuration,
+          trimStart: Math.max(0, trueDuration - scoreDuration),
+          duration: scoreDuration,
+          speed: 0.85,
+          colorFilter: 'high-contrast',
+          transition: 'flash',
+          transitionDuration: 0.45,
+          animIn: 'zoom_in',
+          animInDur: 0.45,
+          animOut: 'flash_out',
+          animOutDur: 0.3,
+          volume: 1.0,
+          isScoreClip: true,
+          thumbnails: []
+        };
+
+        const combatClip = {
+          id: `combat_${Date.now()}`,
+          name: `02. Combat (${chosenStyle.name})`,
+          url,
+          sourceDuration: trueDuration,
+          trimStart: 0,
+          duration: combatDuration,
+          speed: 1.0,
+          colorFilter: chosenStyle.id,
+          transition: 'zoom',
+          transitionDuration: 0.5,
+          animIn: 'none',
+          animInDur: 0.4,
+          animOut: 'fade_out',
+          animOutDur: 0.4,
+          volume: 1.0,
+          isScoreClip: false,
+          thumbnails: []
+        };
+
+        const finalClips = autoScoreLoop ? [scoreClip, combatClip] : [{ ...combatClip, duration: trueDuration }];
+
+        // Tạo track audio tương ứng
+        const autoAudio = {
+          id: `audio_${Date.now()}`,
+          name: `Đã trích xuất_${name.substring(0, 12)}`,
+          url,
+          sourceDuration: trueDuration,
+          start: 0,
+          duration: trueDuration,
+          trimStart: 0,
+          volume: 1.0,
+          fadeIn: 0,
+          fadeOut: 0
+        };
+
+        setProjectTitle(name.replace(/\.[^/.]+$/, ""));
+        setVideoClips(finalClips);
+        setAudioClips([autoAudio]);
+        setActiveClipId(finalClips[0].id);
+        setActiveAudioId(null);
+        activeClipIdRef.current = finalClips[0].id;
+        setSelectedRatio(ASPECT_RATIOS[0]);
+        setCurrentTime(0);
+        currentTimeRef.current = 0;
+        setSubtitles([]);
+        setShowTemplateModal(false);
+
+        const vidA = videoARef.current;
+        if (vidA) {
+          vidA.pause();
+          vidA.removeAttribute('crossorigin');
+          vidA.src = url;
+          vidA.load();
+        }
+        activePlayerRef.current = 'A';
+        activeVideoElRef.current = vidA;
+
+        setCurrentPage('editor');
+        if (timelineScrollRef.current) timelineScrollRef.current.scrollLeft = 0;
+        playNekoSound('success');
+        showToast(`🐾 MatrixAuto sẵn sàng: ${trueDuration.toFixed(1)}s`);
+
+        finalClips.forEach(c => {
+          refreshClipThumbnails(c.id, c.url, c.trimStart, c.duration);
+        });
+      };
+
+      const handleExportMP4 = async () => {
+        if (videoClips.length === 0 || isExporting) return;
+        pauseVideo();
+        setIsExporting(true);
+        setExportProgress(0);
+        playNekoSound('click');
+
+        const vid = activeVideoElRef.current || videoARef.current;
+        const bgm = bgmAudioRef.current;
+        if (!vid) {
+          setIsExporting(false);
+          return;
+        }
+
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = selectedRatio.w;
+        exportCanvas.height = selectedRatio.h;
+        const exportCtx = exportCanvas.getContext('2d', { alpha: false });
+
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!exportAudioCtxRef.current) {
+          exportAudioCtxRef.current = new AudioCtx();
+        }
+        const actx = exportAudioCtxRef.current;
+        if (actx.state === 'suspended') {
+          await actx.resume();
+        }
+
+        const audioDest = actx.createMediaStreamDestination();
+
+        if (!vidSourceNodeRef.current) {
+          try {
+            vidSourceNodeRef.current = actx.createMediaElementSource(vid);
+          } catch (e) {}
+        }
+        if (vidSourceNodeRef.current) {
+          vidSourceNodeRef.current.disconnect();
+          vidSourceNodeRef.current.connect(audioDest);
+        }
+
+        if (bgm && !bgmSourceNodeRef.current) {
+          try {
+            bgmSourceNodeRef.current = actx.createMediaElementSource(bgm);
+          } catch (e) {}
+        }
+        if (bgmSourceNodeRef.current && audioClips.length > 0) {
+          bgmSourceNodeRef.current.disconnect();
+          bgmSourceNodeRef.current.connect(audioDest);
+        }
+
+        const canvasStream = exportCanvas.captureStream(30);
+        const combinedTracks = [
+          ...canvasStream.getVideoTracks(),
+          ...audioDest.stream.getAudioTracks()
+        ];
+        const combinedStream = new MediaStream(combinedTracks);
+
+        let mimeType = 'video/webm;codecs=vp8,opus';
+        if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1,mp4a.40.2')) {
+          mimeType = 'video/mp4;codecs=avc1,mp4a.40.2';
+        } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+          mimeType = 'video/mp4';
+        } else if (MediaRecorder.isTypeSupported('video/webm;codecs=h264,opus')) {
+          mimeType = 'video/webm;codecs=h264,opus';
+        }
+
+        const recorder = new MediaRecorder(combinedStream, {
+          mimeType,
+          videoBitsPerSecond: 16000000
+        });
+
+        const chunks = [];
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+
+        recorder.onstop = () => {
+          const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+          const blob = new Blob(chunks, { type: mimeType });
+          const downloadUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = downloadUrl;
+          a.download = `NekoCut_Export_${Date.now()}.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(downloadUrl);
+
+          setIsExporting(false);
+          playNekoSound('success');
+          showToast('🐾 Xuất video hoàn tất!');
+          seekTo(0, true);
+        };
+
+        recorder.start(100);
+        showToast('Đang kết xuất video & audio...');
+
+        const startTime = performance.now();
+        const totalMs = totalDuration * 1000;
+
+        seekTo(0, true);
+        vid.volume = isMuted ? 0 : (videoClips[0]?.volume ?? 1.0);
+        vid.play().catch(() => {});
+        if (bgm && audioClips.length > 0) {
+          bgm.currentTime = 0;
+          bgm.play().catch(() => {});
+        }
+
+        const renderExportLoop = () => {
+          const elapsed = performance.now() - startTime;
+          const curTimelineSec = Math.min(totalDuration, elapsed / 1000);
+
+          drawFrameToContext(exportCtx, exportCanvas.width, exportCanvas.height, curTimelineSec);
+          setExportProgress(Math.min(100, Math.round((curTimelineSec / totalDuration) * 100)));
+
+          const info = getCurrentClipInfo(curTimelineSec);
+          if (info && vid.src !== info.clip.url) {
+            vid.src = info.clip.url;
+            vid.load();
+          }
+          if (info && Math.abs(vid.currentTime - info.mediaSourceTime) > 0.08) {
+            vid.currentTime = info.mediaSourceTime;
+          }
+
+          if (elapsed < totalMs) {
+            requestAnimationFrame(renderExportLoop);
+          } else {
+            vid.pause();
+            if (bgm) bgm.pause();
+            recorder.stop();
+          }
+        };
+
+        requestAnimationFrame(renderExportLoop);
       };
 
       return (
@@ -1496,7 +1810,7 @@
             ref={bgmAudioRef}
             className="hidden"
             playsInline
-            loop={false}
+            loop
           />
 
           {/* TRANG 1: MÀN HÌNH CHÍNH (HOME) */}
@@ -1852,7 +2166,6 @@
                         setIsMuted(!isMuted);
                         if (videoARef.current) videoARef.current.volume = !isMuted ? 0 : 1;
                         if (videoBRef.current) videoBRef.current.volume = !isMuted ? 0 : 1;
-                        if (bgmAudioRef.current) bgmAudioRef.current.volume = !isMuted ? 0 : 1;
                         showToast(!isMuted ? '🐾 Đã tắt tiếng' : '🐾 Đã bật tiếng');
                       }}
                       className="flex flex-col items-center gap-0.5 text-zinc-400 hover:text-white py-1 rounded"
@@ -1962,7 +2275,7 @@
                                 className={`h-full flex items-center justify-between cursor-pointer shrink-0 relative overflow-visible transition-colors ${
                                   isSelected
                                     ? 'border-2 border-white bg-[#1a1924] shadow-2xl z-20 rounded-lg ring-2 ring-white/60'
-                                    : 'border-y border-r border-white/[0.08] bg-[#14141c]'
+                                    : 'border-y border-r border-white/[0.08] bg-[#14141c] hover:border-white/30'
                                 } ${idx === 0 ? 'border-l border-white/[0.08]' : ''}`}
                               >
                                 <div className="absolute -top-3 left-1 z-30 pointer-events-none">
@@ -1976,6 +2289,7 @@
                                     onPointerDown={(e) => handleTrimPointerDown(e, 'left', clip)}
                                     onPointerMove={handleTrimPointerMove}
                                     onPointerUp={handleTrimPointerUp}
+                                    onPointerCancel={handleTrimPointerUp}
                                     className="absolute -left-1 top-0 bottom-0 w-4 bg-white rounded-l-md flex items-center justify-center z-30 cursor-ew-resize active:bg-pink-300 shadow-lg touch-none"
                                   >
                                     <div className="w-[3px] h-4 bg-black/80 rounded-full" />
@@ -2020,6 +2334,7 @@
                                     onPointerDown={(e) => handleTrimPointerDown(e, 'right', clip)}
                                     onPointerMove={handleTrimPointerMove}
                                     onPointerUp={handleTrimPointerUp}
+                                    onPointerCancel={handleTrimPointerUp}
                                     className="absolute -right-1 top-0 bottom-0 w-4 bg-white rounded-r-md flex items-center justify-center z-30 cursor-ew-resize active:bg-pink-300 shadow-lg touch-none"
                                   >
                                     <div className="w-[3px] h-4 bg-black/80 rounded-full" />
@@ -2087,25 +2402,28 @@
                         </label>
                       </div>
 
-                      {/* TRACK 2: THANH ÂM THANH CHUẨN CAPCUT CĂN KHỚP CHÍNH XÁC VỚI TIMELINE */}
-                      <div className="h-9 relative w-full my-0.5 pointer-events-auto">
+                      {/* TRACK 2: THANH ÂM THANH CHUẨN CAPCUT VỚI SÓNG ÂM WAVEFORM */}
+                      <div className="h-9 relative flex items-center my-0.5">
                         {audioClips.map((aud) => {
                           const audLeft = (aud.start || 0) * timelineZoom;
-                          const audWidth = Math.max(30, aud.duration * timelineZoom);
+                          const audWidth = aud.duration * timelineZoom;
                           const isAudSelected = activeAudioId === aud.id;
 
                           return (
                             <div
                               key={aud.id}
-                              onPointerDown={(e) => handleAudioMovePointerDown(e, aud)}
-                              onPointerMove={handleAudioMovePointerMove}
-                              onPointerUp={handleAudioMovePointerUp}
-                              onPointerCancel={handleAudioMovePointerUp}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveAudioId(aud.id);
+                                setActiveClipId(null);
+                                setActiveSubId(null);
+                                playNekoSound('click');
+                              }}
                               style={{
                                 left: `${audLeft}px`,
                                 width: `${audWidth}px`
                               }}
-                              className={`absolute top-0.5 h-8 rounded-lg flex items-center cursor-move overflow-visible transition-colors ${
+                              className={`absolute h-8 rounded-lg flex items-center cursor-pointer overflow-visible transition-colors ${
                                 isAudSelected
                                   ? 'bg-[#008f8f] border-2 border-white shadow-[0_0_15px_rgba(0,255,255,0.4)] z-30'
                                   : 'bg-[#007070]/90 border border-[#009b9b]/70 hover:border-[#00ffff]/60 z-20'
@@ -2156,16 +2474,72 @@
                         {subtitles.map((sub) => {
                           const subLeft = sub.start * timelineZoom;
                           const subW = Math.max(20, (sub.end - sub.start) * timelineZoom);
+                          const isSubSelected = activeSubId === sub.id;
+
                           return (
                             <div
                               key={sub.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveSubId(sub.id);
+                                playNekoSound('click');
+                                renderCanvasFrame(currentTimeRef.current);
+                              }}
                               style={{ left: `${subLeft}px`, width: `${subW}px` }}
-                              className="absolute h-5 bg-rose-950/70 border border-rose-800/40 rounded px-1 text-[9px] text-rose-300 truncate"
+                              className={`absolute h-6 rounded-md flex items-center justify-between px-1.5 z-20 cursor-pointer ${
+                                isSubSelected
+                                  ? 'bg-rose-900 border-2 border-white shadow-lg text-white'
+                                  : 'bg-rose-950/60 border border-rose-800/40 text-rose-300 hover:border-rose-400'
+                              }`}
                             >
-                              {sub.text}
+                              {isSubSelected && (
+                                <div
+                                  onPointerDown={(e) => handleSubTrimPointerDown(e, 'left', sub)}
+                                  onPointerMove={handleSubTrimPointerMove}
+                                  onPointerUp={handleSubTrimPointerUp}
+                                  onPointerCancel={handleSubTrimPointerUp}
+                                  className="w-2.5 h-full -ml-1 bg-white rounded-l flex items-center justify-center cursor-ew-resize active:bg-pink-300"
+                                >
+                                  <div className="w-[2px] h-3 bg-black/80 rounded" />
+                                </div>
+                              )}
+
+                              <div
+                                onPointerDown={(e) => handleSubTrimPointerDown(e, 'move', sub)}
+                                onPointerMove={handleSubTrimPointerMove}
+                                onPointerUp={handleSubTrimPointerUp}
+                                onPointerCancel={handleSubTrimPointerUp}
+                                className="flex-1 truncate text-[10px] font-bold px-1 select-none"
+                              >
+                                {sub.text}
+                              </div>
+
+                              {isSubSelected && (
+                                <div
+                                  onPointerDown={(e) => handleSubTrimPointerDown(e, 'right', sub)}
+                                  onPointerMove={handleSubTrimPointerMove}
+                                  onPointerUp={handleSubTrimPointerUp}
+                                  onPointerCancel={handleSubTrimPointerUp}
+                                  className="w-2.5 h-full -ml-1 bg-white rounded-r flex items-center justify-center cursor-ew-resize active:bg-pink-300"
+                                >
+                                  <div className="w-[2px] h-3 bg-black/80 rounded" />
+                                </div>
+                              )}
                             </div>
                           );
                         })}
+
+                        <button
+                          onClick={() => {
+                            setActiveBottomMenu('text');
+                            setShowToolSheet(true);
+                            playNekoSound('click');
+                          }}
+                          className="text-[11px] text-zinc-400 flex items-center gap-1 bg-[#15151f] hover:text-white px-2.5 py-1 rounded-md border border-white/[0.06] shrink-0 active:scale-95"
+                        >
+                          <span className="text-zinc-500">+</span>
+                          <span>Thêm chữ</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -2175,7 +2549,7 @@
               {/* FOOTER TOOLBAR CHUYỂN ĐỔI: TỰ ĐỘNG CHUYỂN MENU AUDIO KHI CHỌN TRACK ÂM THANH */}
               <footer className="h-16 px-2 flex items-center justify-around bg-[#08080c] border-t border-white/[0.06] shrink-0 z-30">
                 {activeAudio ? (
-                  // MENU ĐIỀU KHIỂN ÂM THANH CHUẨN CAPCUT
+                  // MENU ĐIỀU KHIỂN ÂM THANH CHUẨN
                   <div className="flex items-center justify-between w-full px-2 overflow-x-auto no-scrollbar">
                     <button
                       onClick={() => setActiveAudioId(null)}
@@ -2974,7 +3348,7 @@
                                 id: `audio_${Date.now()}`,
                                 name: f.name,
                                 url,
-                                start: Number((currentTimeRef.current || 0).toFixed(2)),
+                                start: 0,
                                 duration: totalDuration,
                                 trimStart: 0,
                                 sourceDuration: totalDuration,
